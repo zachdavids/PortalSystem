@@ -42,15 +42,4 @@ void APortalSystemProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherA
 	//	Destroy();
 	//}
 	// try and fire a projectile
-	if (PortalClass != NULL)
-	{
-		UWorld* const World = GetWorld();
-
-		FActorSpawnParameters ActorSpawnParams;
-		ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		World->SpawnActor<APortal>(PortalClass, Hit.Location, (Hit.ImpactNormal * -1).Rotation(), ActorSpawnParams);
-
-		Destroy();
-	}
 }

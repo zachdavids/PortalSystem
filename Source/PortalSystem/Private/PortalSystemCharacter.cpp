@@ -10,6 +10,10 @@
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "MotionControllerComponent.h"
+#include "PortalSystemPlayerController.h"
+#include "PortalManager.h"
+#include "DrawDebugHelpers.h"
+#include "Portal.h"
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::RightHandSourceId
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
@@ -86,7 +90,7 @@ APortalSystemCharacter::APortalSystemCharacter()
 
 void APortalSystemCharacter::BeginPlay()
 {
-	// Call the base class  
+	// Call the base class		
 	Super::BeginPlay();
 
 	//Attach gun mesh component to Skeleton, doing it here because the skeleton is not yet created in the constructor
@@ -118,7 +122,8 @@ void APortalSystemCharacter::SetupPlayerInputComponent(class UInputComponent* Pl
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
 	// Bind fire event
-	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &APortalSystemCharacter::OnFire);
+	PlayerInputComponent->BindAction("FireBlue", IE_Pressed, this, &APortalSystemCharacter::OnBlueFire);
+	PlayerInputComponent->BindAction("FireRed", IE_Pressed, this, &APortalSystemCharacter::OnRedFire);
 
 	// Enable touchscreen input
 	EnableTouchscreenMovement(PlayerInputComponent);
@@ -138,32 +143,69 @@ void APortalSystemCharacter::SetupPlayerInputComponent(class UInputComponent* Pl
 	PlayerInputComponent->BindAxis("LookUpRate", this, &APortalSystemCharacter::LookUpAtRate);
 }
 
-void APortalSystemCharacter::OnFire()
+void APortalSystemCharacter::OnBlueFire()
 {
-	// try and fire a projectile
-	if (ProjectileClass != NULL)
+	APortalSystemPlayerController* PlayerController = Cast<APortalSystemPlayerController>(GetWorld()->GetFirstPlayerController());
+	if (PlayerController != nullptr)
+	{
+		APortalManager* PortalManager = PlayerController->GetPortalManager();
+		if (PortalManager != nullptr)
+		{
+			APortal* Portal = SpawnPortal(FColor::Blue);
+			if (Portal != nullptr)
+			{
+				PortalManager->SetBluePortal(Portal);
+			}
+		}
+	}
+}
+
+void APortalSystemCharacter::OnRedFire()
+{
+	APortalSystemPlayerController* PlayerController = Cast<APortalSystemPlayerController>(GetWorld()->GetFirstPlayerController());
+	if (PlayerController != nullptr)
+	{
+		APortalManager* PortalManager = PlayerController->GetPortalManager();
+		if (PortalManager != nullptr)
+		{
+			APortal* Portal = SpawnPortal(FColor::Red);
+			if (Portal != nullptr)
+			{
+				PortalManager->SetRedPortal(Portal);
+			}
+		}
+	}
+}
+
+APortal* APortalSystemCharacter::SpawnPortal(FColor Color)
+{
+	APortal* Portal = nullptr;
+
+	if (PortalClass != NULL)
 	{
 		UWorld* const World = GetWorld();
-		if (World != NULL)
+		if (World != nullptr)
 		{
-			if (bUsingMotionControllers)
-			{
-				const FRotator SpawnRotation = VR_MuzzleLocation->GetComponentRotation();
-				const FVector SpawnLocation = VR_MuzzleLocation->GetComponentLocation();
-				World->SpawnActor<APortalSystemProjectile>(ProjectileClass, SpawnLocation, SpawnRotation);
-			}
-			else
-			{
-				const FRotator SpawnRotation = GetControlRotation();
-				// MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position
-				const FVector SpawnLocation = ((FP_MuzzleLocation != nullptr) ? FP_MuzzleLocation->GetComponentLocation() : GetActorLocation()) + SpawnRotation.RotateVector(GunOffset);
+			const FRotator SpawnRotation = GetControlRotation();
+			// MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position
+			const FVector Start = ((FP_MuzzleLocation != nullptr) ? FP_MuzzleLocation->GetComponentLocation() : GetActorLocation()) + SpawnRotation.RotateVector(GunOffset);
+			const FVector End = FirstPersonCameraComponent->GetForwardVector() * 5000.f + Start;
 
-				//Set Spawn Collision Handling Override
-				FActorSpawnParameters ActorSpawnParams;
-				ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+			DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 1, 0, 1);
 
-				// spawn the projectile at the muzzle
-				World->SpawnActor<APortalSystemProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
+			FHitResult OutHit;
+
+			if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility))
+			{
+				if (OutHit.bBlockingHit)
+				{
+					FActorSpawnParameters ActorSpawnParams;
+					ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+					FVector SpawnLocation = OutHit.Location + (OutHit.ImpactNormal);
+					Portal = World->SpawnActor<APortal>(PortalClass, SpawnLocation, (OutHit.ImpactNormal * -1).Rotation(), ActorSpawnParams);
+					//TODO Set Portal Color
+				}
 			}
 		}
 	}
@@ -184,6 +226,8 @@ void APortalSystemCharacter::OnFire()
 			AnimInstance->Montage_Play(FireAnimation, 1.f);
 		}
 	}
+
+	return Portal;
 }
 
 void APortalSystemCharacter::OnResetVR()
@@ -199,7 +243,6 @@ void APortalSystemCharacter::BeginTouch(const ETouchIndex::Type FingerIndex, con
 	}
 	if ((FingerIndex == TouchItem.FingerIndex) && (TouchItem.bMoved == false))
 	{
-		OnFire();
 	}
 	TouchItem.bIsPressed = true;
 	TouchItem.FingerIndex = FingerIndex;

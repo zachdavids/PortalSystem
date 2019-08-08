@@ -15,12 +15,21 @@ public:
 	// Sets default values for this actor's properties
 	APortal();
 
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
+	void TeleportActor(AActor* ActorToTeleport);
+
+	APortal* GetTarget();
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	UPROPERTY(BlueprintReadWrite)
+	UMaterialInstanceDynamic* MaterialInstance;
 
+private:
+
+	APortal* Target;
 };

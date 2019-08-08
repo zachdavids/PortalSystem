@@ -64,9 +64,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
 	FVector GunOffset;
 
-	/** Projectile class to spawn */
-	UPROPERTY(EditDefaultsOnly, Category=Projectile)
-	TSubclassOf<class APortalSystemProjectile> ProjectileClass;
+	/** Portal class to spawn */
+	UPROPERTY(EditDefaultsOnly, Category = Portal)
+	TSubclassOf<class APortal> PortalClass;
 
 	/** Sound to play each time we fire */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
@@ -82,8 +82,11 @@ public:
 
 protected:
 	
-	/** Fires a projectile. */
-	void OnFire();
+	void OnBlueFire();
+
+	void OnRedFire();
+
+	APortal* SpawnPortal(FColor Color);
 
 	/** Resets HMD orientation and position in VR. */
 	void OnResetVR();
@@ -122,6 +125,7 @@ protected:
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
+
 	// End of APawn interface
 
 	/* 
