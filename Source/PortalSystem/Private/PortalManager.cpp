@@ -5,13 +5,14 @@
 #include "Portal.h"
 #include "PortalSystemCharacter.h"
 #include "PortalSystemPlayerController.h"
+#include "EngineUtils.h"
 
 // Sets default values
 APortalManager::APortalManager(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 }
 
@@ -23,10 +24,16 @@ void APortalManager::BeginPlay()
 }
 
 // Called every frame
-void APortalManager::Tick(float DeltaTime)
+void APortalManager::UpdatePortals(float DeltaTime)
 {
-	Super::Tick(DeltaTime);
-
+	for (TActorIterator<APortal> It(GetWorld()); It; ++It)
+	{
+		APortal* Portal = *It;
+		if (Portal != nullptr)
+		{
+			Portal->UpdateCapture();
+		}
+	}
 }
 
 void APortalManager::RequestTeleport(APortal* Portal, AActor* TeleportTarget)
@@ -47,6 +54,12 @@ void APortalManager::SetBluePortal(APortal* NewPortal)
 	}
 
 	BluePortal = NewPortal;
+
+	if (RedPortal != nullptr)
+	{
+		BluePortal->SetTarget(RedPortal);
+		RedPortal->SetTarget(BluePortal);
+	}
 }
 
 void APortalManager::SetRedPortal(APortal* NewPortal)
@@ -57,4 +70,10 @@ void APortalManager::SetRedPortal(APortal* NewPortal)
 	}
 
 	RedPortal = NewPortal;
+
+	if (BluePortal != nullptr)
+	{
+		RedPortal->SetTarget(BluePortal);
+		BluePortal->SetTarget(RedPortal);
+	}
 }

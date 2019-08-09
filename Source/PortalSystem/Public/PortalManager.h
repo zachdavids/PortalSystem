@@ -7,8 +7,6 @@
 #include "PortalManager.generated.h"
 
 class APortal;
-class UCanvasRenderTarget2D;
-class USceneCaptureComponent2D;
 class APortalSystemPlayerController;
 
 UCLASS()
@@ -20,8 +18,8 @@ public:
 	// Sets default values for this actor's properties
 	APortalManager(const FObjectInitializer& ObjectInitializer);
 
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	// Called by character every frame
+	void UpdatePortals(float DeltaTime);
 
 	void SetControllerOwner(APortalSystemPlayerController* NewOwner);
 
@@ -44,13 +42,4 @@ private:
 
 	UPROPERTY()
 	APortalSystemPlayerController* OwningController;
-
-	UPROPERTY()
-	USceneCaptureComponent2D* SceneCapture;
-
-	UPROPERTY()
-	UCanvasRenderTarget2D* PortalTexture;
-
-	int32 PreviousScreenSizeX;
-	int32 PreviousScreenSizeY;
 };

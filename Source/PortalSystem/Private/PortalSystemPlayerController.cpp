@@ -15,3 +15,22 @@ void APortalSystemPlayerController::BeginPlay()
 	PortalManager->AttachToActor(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	PortalManager->SetControllerOwner(this);
 }
+
+FMatrix APortalSystemPlayerController::GetCameraProjectionMatrix()
+{
+	FMatrix ProjectionMatrix;
+
+	if (GetLocalPlayer() != nullptr)
+	{
+		FSceneViewProjectionData PlayerProjectionData;
+		GetLocalPlayer()->GetProjectionData(
+			GetLocalPlayer()->ViewportClient->Viewport,
+			EStereoscopicPass::eSSP_FULL,
+			PlayerProjectionData
+		);
+
+		ProjectionMatrix = PlayerProjectionData.ProjectionMatrix;
+	}
+
+	return ProjectionMatrix;
+}

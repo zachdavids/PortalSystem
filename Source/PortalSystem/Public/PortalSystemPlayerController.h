@@ -16,9 +16,10 @@ class PORTALSYSTEM_API APortalSystemPlayerController : public APlayerController
 public:
 	APortalManager* GetPortalManager();
 
+	FMatrix GetCameraProjectionMatrix();
+
 protected:
 	virtual void BeginPlay() override;
 
 	APortalManager* PortalManager;
-	
 };

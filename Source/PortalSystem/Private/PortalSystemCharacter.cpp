@@ -14,6 +14,8 @@
 #include "PortalManager.h"
 #include "DrawDebugHelpers.h"
 #include "Portal.h"
+#include "PortalSystemPlayerController.h"
+#include "PortalManager.h"
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::RightHandSourceId
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
@@ -109,8 +111,14 @@ void APortalSystemCharacter::BeginPlay()
 	}
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Input
+void APortalSystemCharacter::Tick(float DeltaTime)
+{
+	if (UGameplayStatics::GetPlayerController(GetWorld(), 0) != nullptr)
+	{
+		APortalSystemPlayerController* PlayerController = Cast<APortalSystemPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+		PlayerController->GetPortalManager()->UpdatePortals(DeltaTime);
+	}
+}
 
 void APortalSystemCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
