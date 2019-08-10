@@ -12,7 +12,6 @@
 #include "MotionControllerComponent.h"
 #include "PortalSystemPlayerController.h"
 #include "PortalManager.h"
-#include "DrawDebugHelpers.h"
 #include "Portal.h"
 #include "PortalSystemPlayerController.h"
 #include "PortalManager.h"
@@ -130,8 +129,8 @@ void APortalSystemCharacter::SetupPlayerInputComponent(class UInputComponent* Pl
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
 	// Bind fire event
-	PlayerInputComponent->BindAction("FireBlue", IE_Pressed, this, &APortalSystemCharacter::OnBlueFire);
-	PlayerInputComponent->BindAction("FireRed", IE_Pressed, this, &APortalSystemCharacter::OnRedFire);
+	//PlayerInputComponent->BindAction("FireBlue", IE_Pressed, this, &APortalSystemCharacter::OnBlueFire);
+	//PlayerInputComponent->BindAction("FireRed", IE_Pressed, this, &APortalSystemCharacter::OnRedFire);
 
 	// Enable touchscreen input
 	EnableTouchscreenMovement(PlayerInputComponent);
@@ -199,10 +198,7 @@ APortal* APortalSystemCharacter::SpawnPortal(FColor Color)
 			const FVector Start = ((FP_MuzzleLocation != nullptr) ? FP_MuzzleLocation->GetComponentLocation() : GetActorLocation()) + SpawnRotation.RotateVector(GunOffset);
 			const FVector End = FirstPersonCameraComponent->GetForwardVector() * 5000.f + Start;
 
-			DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 1, 0, 1);
-
 			FHitResult OutHit;
-
 			if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility))
 			{
 				if (OutHit.bBlockingHit)
@@ -211,7 +207,7 @@ APortal* APortalSystemCharacter::SpawnPortal(FColor Color)
 					ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 					FVector SpawnLocation = OutHit.Location + (OutHit.ImpactNormal);
-					Portal = World->SpawnActor<APortal>(PortalClass, SpawnLocation, (OutHit.ImpactNormal * -1).Rotation(), ActorSpawnParams);
+					Portal = World->SpawnActor<APortal>(PortalClass, SpawnLocation, FRotator(0), ActorSpawnParams);
 					//TODO Set Portal Color
 				}
 			}

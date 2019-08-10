@@ -8,6 +8,7 @@
 
 class APortal;
 class APortalSystemPlayerController;
+class USceneCaptureComponent2D;
 
 UCLASS()
 class PORTALSYSTEM_API APortalManager : public AActor
@@ -30,9 +31,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Portal")
 	void RequestTeleport(APortal* Portal, AActor* TeleportTarget);
 
+	FVector ConvertLocation(FVector Location, AActor* Portal, AActor* Target);
+
+	FRotator ConvertRotation(FRotator Rotation, AActor* Portal, AActor* Target);
+
+	FVector ConvertDirection(FVector Direction, AActor* Portal, AActor* Target);
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = Capture)
+	USceneCaptureComponent2D* CaptureComponent;
 
 private:
 
