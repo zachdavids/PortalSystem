@@ -7,6 +7,8 @@
 #include "Portal.generated.h"
 
 class UMaterial;
+class UBoxComponent;
+class USceneComponent;
 class UStaticMeshComponent;
 class UTextureRenderTarget2D;
 
@@ -34,16 +36,19 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Mesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Portal)
 	UStaticMeshComponent* MeshComponent;
 
-	UPROPERTY(VisibleAnywhere, Category = Capture)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Portal)
+	UBoxComponent* BoxComponent;
+
+	UPROPERTY(EditAnywhere, Category = Capture)
 	UTextureRenderTarget2D* RenderTarget;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Capture)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Capture)
 	UMaterial* Material;
 
-	UPROPERTY(VisibleAnywhere, Category = Capture)
+	UPROPERTY(EditAnywhere, Category = Capture)
 	UMaterialInstanceDynamic* MaterialInstance;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Capture)

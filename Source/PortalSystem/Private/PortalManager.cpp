@@ -5,6 +5,7 @@
 #include "Portal.h"
 #include "PortalSystemCharacter.h"
 #include "PortalSystemPlayerController.h"
+#include "DrawDebugHelpers.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "EngineUtils.h"
 
@@ -37,7 +38,7 @@ APortalManager::APortalManager(const FObjectInitializer& ObjectInitializer) :
 	CaptureComponent->LODDistanceFactor = 3;
 	CaptureComponent->TextureTarget = nullptr;
 	CaptureComponent->bEnableClipPlane = true;
-	CaptureComponent->bUseCustomProjectionMatrix = false;
+	CaptureComponent->bUseCustomProjectionMatrix = true;
 	CaptureComponent->CaptureSource = ESceneCaptureSource::SCS_SceneColorSceneDepth;
 	CaptureComponent->PostProcessSettings = CaptureSettings;
 }
@@ -64,10 +65,13 @@ void APortalManager::UpdatePortals(float DeltaTime)
 				APortal* Target = Portal->GetTarget();
 				if (Portal != nullptr && Target != nullptr)
 				{
-					CaptureComponent->SetWorldLocation(ConvertLocation(CameraManager->GetCameraLocation(), Target, Portal));
-					CaptureComponent->SetWorldRotation(ConvertRotation(CameraManager->GetCameraRotation(), Target, Portal));
-					CaptureComponent->ClipPlaneBase = Target->GetActorLocation();
-					CaptureComponent->ClipPlaneBase = Target->GetActorForwardVector();
+					FVector Location = ConvertLocation(CameraManager->GetCameraLocation(), Portal, Target);
+					CaptureComponent->SetWorldLocation(Location);
+					FRotator Rotation = ConvertRotation(CameraManager->GetCameraRotation(), Portal, Target);
+					CaptureComponent->SetWorldRotation(Rotation);
+					CaptureComponent->ClipPlaneNormal = Target->GetActorForwardVector();
+					CaptureComponent->ClipPlaneBase = Target->GetActorLocation() + (CaptureComponent->ClipPlaneNormal * -1.5f);;
+					CaptureComponent->CustomProjectionMatrix = OwningController->GetCameraProjectionMatrix();
 					CaptureComponent->TextureTarget = Portal->GetRenderTarget();
 					CaptureComponent->CaptureScene();
 				}
@@ -83,32 +87,32 @@ void APortalManager::RequestTeleport(APortal* Portal, AActor* TeleportTarget)
 
 FVector APortalManager::ConvertLocation(FVector Location, AActor* Portal, AActor* Target)
 {
-	FTransform PortalTransform = Portal->GetActorTransform();
-	FVector PortalScale = PortalTransform.GetScale3D();
-	PortalTransform.SetScale3D(FVector(-PortalScale.X, -PortalScale.Y, PortalScale.Z));
+	FVector Direction = Location - Portal->GetActorLocation();
+	FVector TargetLocation = Target->GetActorLocation();
 
-	return Target->GetActorTransform().TransformPosition(PortalTransform.InverseTransformPosition(Location));
+	FVector Dots;
+	Dots.X = FVector::DotProduct(Direction, Portal->GetActorForwardVector());
+	Dots.Y = FVector::DotProduct(Direction, Portal->GetActorRightVector());
+	Dots.Z = FVector::DotProduct(Direction, Portal->GetActorUpVector());
+
+	FVector NewDirection = Dots.X * -Target->GetActorForwardVector()
+		+ Dots.Y * -Target->GetActorRightVector()
+		+ Dots.Z * Target->GetActorUpVector();
+
+	return TargetLocation + NewDirection;
 }
 
 FRotator APortalManager::ConvertRotation(FRotator Rotation, AActor* Portal, AActor* Target)
 {
-	FRotationMatrix R(Rotation);
-	FVector AxisX = R.GetScaledAxis(EAxis::X);
-	FVector AxisY = R.GetScaledAxis(EAxis::Y);
+	FTransform SourceTransform = Portal->GetActorTransform();
+	FTransform TargetTransform = Target->GetActorTransform();
+	Rotation.Yaw -= 180.0f;
+	FQuat QuatRotation = FQuat(Rotation);
 
-	FVector DirectionX = ConvertDirection(AxisX, Portal, Target);
-	FVector DirectionY = ConvertDirection(AxisY, Portal, Target);
-
-	return FRotationMatrix::MakeFromXY(DirectionX, DirectionY).Rotator();
-}
-
-FVector APortalManager::ConvertDirection(FVector Direction, AActor* Portal, AActor* Target)
-{
-	FVector InverseDirectionT = Portal->GetActorTransform().InverseTransformVectorNoScale(Direction);
-	InverseDirectionT = FMath::GetReflectionVector(InverseDirectionT, (FVector(1.0f, 0, 0)));
-	InverseDirectionT = FMath::GetReflectionVector(InverseDirectionT, (FVector(0, 1.0f, 0)));
-
-	return Target->GetActorTransform().TransformVectorNoScale(InverseDirectionT);
+	FQuat LocalQuat = SourceTransform.GetRotation().Inverse() * QuatRotation;
+	FQuat NewWorldQuat = TargetTransform.GetRotation() * LocalQuat;
+	FRotator Final = NewWorldQuat.Rotator();
+	return Final;
 }
 
 void APortalManager::SetControllerOwner(APortalSystemPlayerController* NewOwner)

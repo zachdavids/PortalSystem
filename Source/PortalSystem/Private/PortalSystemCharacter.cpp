@@ -129,8 +129,8 @@ void APortalSystemCharacter::SetupPlayerInputComponent(class UInputComponent* Pl
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
 	// Bind fire event
-	//PlayerInputComponent->BindAction("FireBlue", IE_Pressed, this, &APortalSystemCharacter::OnBlueFire);
-	//PlayerInputComponent->BindAction("FireRed", IE_Pressed, this, &APortalSystemCharacter::OnRedFire);
+	PlayerInputComponent->BindAction("FireBlue", IE_Pressed, this, &APortalSystemCharacter::OnBlueFire);
+	PlayerInputComponent->BindAction("FireRed", IE_Pressed, this, &APortalSystemCharacter::OnRedFire);
 
 	// Enable touchscreen input
 	EnableTouchscreenMovement(PlayerInputComponent);
@@ -207,7 +207,7 @@ APortal* APortalSystemCharacter::SpawnPortal(FColor Color)
 					ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 					FVector SpawnLocation = OutHit.Location + (OutHit.ImpactNormal);
-					Portal = World->SpawnActor<APortal>(PortalClass, SpawnLocation, FRotator(0), ActorSpawnParams);
+					Portal = World->SpawnActor<APortal>(PortalClass, SpawnLocation, OutHit.ImpactNormal.Rotation(), ActorSpawnParams);
 					//TODO Set Portal Color
 				}
 			}

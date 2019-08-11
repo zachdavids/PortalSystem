@@ -7,8 +7,8 @@
 #include "PortalManager.generated.h"
 
 class APortal;
-class APortalSystemPlayerController;
 class USceneCaptureComponent2D;
+class APortalSystemPlayerController;
 
 UCLASS()
 class PORTALSYSTEM_API APortalManager : public AActor
@@ -35,13 +35,11 @@ public:
 
 	FRotator ConvertRotation(FRotator Rotation, AActor* Portal, AActor* Target);
 
-	FVector ConvertDirection(FVector Direction, AActor* Portal, AActor* Target);
-
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	UPROPERTY(VisibleDefaultsOnly, Category = Capture)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Capture)
 	USceneCaptureComponent2D* CaptureComponent;
 
 private:

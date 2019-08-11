@@ -4,11 +4,11 @@
 #include "Portal.h"
 #include "PortalSystemCharacter.h"
 #include "PortalSystemPlayerController.h"
-#include "DrawDebugHelpers.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/BoxComponent.h"
 
 // Sets default values
 APortal::APortal()
@@ -17,10 +17,15 @@ APortal::APortal()
 	PrimaryActorTick.bCanEverTick = true;
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(FName("RootComponent"));
+	RootComponent->Mobility = EComponentMobility::Static;
 	SetRootComponent(RootComponent);
 
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName("MeshComponent"));
 	MeshComponent->SetupAttachment(RootComponent);
+
+	BoxComponent = CreateDefaultSubobject<UBoxComponent>(FName("BoxComponent"));
+	BoxComponent->SetupAttachment(RootComponent);
+	BoxComponent->SetBoxExtent(FVector(100, 100, 100));
 }
 
 // Called when the game starts or when spawned
@@ -55,7 +60,10 @@ void APortal::TeleportActor(AActor* ActorToTeleport)
 
 void APortal::SetTarget(APortal* NewTarget)
 {
-	Target = NewTarget;
+	if (NewTarget != nullptr)
+	{
+		Target = NewTarget;
+	}
 }
 
 APortal* APortal::GetTarget()
@@ -67,4 +75,3 @@ UTextureRenderTarget2D* APortal::GetRenderTarget()
 {
 	return RenderTarget;
 }
-
