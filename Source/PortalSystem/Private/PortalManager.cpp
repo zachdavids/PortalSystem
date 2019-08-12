@@ -5,6 +5,7 @@
 #include "Portal.h"
 #include "PortalSystemCharacter.h"
 #include "PortalSystemPlayerController.h"
+#include "MathLibrary.h"
 #include "DrawDebugHelpers.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "EngineUtils.h"
@@ -14,7 +15,8 @@ APortalManager::APortalManager(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickGroup = ETickingGroup::TG_PostUpdateWork;
 
 	CaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(FName("CaptureComponent"));
 	CaptureComponent->SetupAttachment(RootComponent);
@@ -43,6 +45,13 @@ APortalManager::APortalManager(const FObjectInitializer& ObjectInitializer) :
 	CaptureComponent->PostProcessSettings = CaptureSettings;
 }
 
+void APortalManager::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	UpdatePortals();
+}
+
 // Called when the game starts or when spawned
 void APortalManager::BeginPlay()
 {
@@ -51,7 +60,7 @@ void APortalManager::BeginPlay()
 }
 
 // Called every frame
-void APortalManager::UpdatePortals(float DeltaTime)
+void APortalManager::UpdatePortals()
 {
 	APortalSystemPlayerController* PlayerController = Cast<APortalSystemPlayerController>(GetWorld()->GetFirstPlayerController());
 	if (PlayerController != nullptr)
@@ -65,10 +74,8 @@ void APortalManager::UpdatePortals(float DeltaTime)
 				APortal* Target = Portal->GetTarget();
 				if (Portal != nullptr && Target != nullptr)
 				{
-					FVector Location = ConvertLocation(CameraManager->GetCameraLocation(), Portal, Target);
-					CaptureComponent->SetWorldLocation(Location);
-					FRotator Rotation = ConvertRotation(CameraManager->GetCameraRotation(), Portal, Target);
-					CaptureComponent->SetWorldRotation(Rotation);
+					CaptureComponent->SetWorldLocation(UMathLibrary::ConvertLocation(CameraManager->GetCameraLocation(), Portal, Target));
+					CaptureComponent->SetWorldRotation(UMathLibrary::ConvertRotation(CameraManager->GetCameraRotation(), Portal, Target));
 					CaptureComponent->ClipPlaneNormal = Target->GetActorForwardVector();
 					CaptureComponent->ClipPlaneBase = Target->GetActorLocation() + (CaptureComponent->ClipPlaneNormal * -1.5f);;
 					CaptureComponent->CustomProjectionMatrix = OwningController->GetCameraProjectionMatrix();
@@ -83,36 +90,6 @@ void APortalManager::UpdatePortals(float DeltaTime)
 void APortalManager::RequestTeleport(APortal* Portal, AActor* TeleportTarget)
 {
 
-}
-
-FVector APortalManager::ConvertLocation(FVector Location, AActor* Portal, AActor* Target)
-{
-	FVector Direction = Location - Portal->GetActorLocation();
-	FVector TargetLocation = Target->GetActorLocation();
-
-	FVector Dots;
-	Dots.X = FVector::DotProduct(Direction, Portal->GetActorForwardVector());
-	Dots.Y = FVector::DotProduct(Direction, Portal->GetActorRightVector());
-	Dots.Z = FVector::DotProduct(Direction, Portal->GetActorUpVector());
-
-	FVector NewDirection = Dots.X * -Target->GetActorForwardVector()
-		+ Dots.Y * -Target->GetActorRightVector()
-		+ Dots.Z * Target->GetActorUpVector();
-
-	return TargetLocation + NewDirection;
-}
-
-FRotator APortalManager::ConvertRotation(FRotator Rotation, AActor* Portal, AActor* Target)
-{
-	FTransform SourceTransform = Portal->GetActorTransform();
-	FTransform TargetTransform = Target->GetActorTransform();
-	Rotation.Yaw -= 180.0f;
-	FQuat QuatRotation = FQuat(Rotation);
-
-	FQuat LocalQuat = SourceTransform.GetRotation().Inverse() * QuatRotation;
-	FQuat NewWorldQuat = TargetTransform.GetRotation() * LocalQuat;
-	FRotator Final = NewWorldQuat.Rotator();
-	return Final;
 }
 
 void APortalManager::SetControllerOwner(APortalSystemPlayerController* NewOwner)

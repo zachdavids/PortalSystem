@@ -19,8 +19,10 @@ public:
 	// Sets default values for this actor's properties
 	APortalManager(const FObjectInitializer& ObjectInitializer);
 
+	void Tick(float DeltaTime) override;
+
 	// Called by character every frame
-	void UpdatePortals(float DeltaTime);
+	void UpdatePortals();
 
 	void SetControllerOwner(APortalSystemPlayerController* NewOwner);
 
@@ -30,10 +32,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Portal")
 	void RequestTeleport(APortal* Portal, AActor* TeleportTarget);
-
-	FVector ConvertLocation(FVector Location, AActor* Portal, AActor* Target);
-
-	FRotator ConvertRotation(FRotator Rotation, AActor* Portal, AActor* Target);
 
 protected:
 	// Called when the game starts or when spawned

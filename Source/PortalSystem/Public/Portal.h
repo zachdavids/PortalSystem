@@ -23,14 +23,21 @@ public:
 
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	
+	UFUNCTION()
+	void OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
-	void TeleportActor(AActor* ActorToTeleport);
+	UFUNCTION()
+	void OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	void TeleportActors();
 
 	void SetTarget(APortal* NewTarget);
 
 	APortal* GetTarget();
 
 	UTextureRenderTarget2D* GetRenderTarget();
+
 
 protected:
 	// Called when the game starts or when spawned
@@ -56,4 +63,11 @@ protected:
 
 private:
 
+	FVector LastPosition;
+
+	bool bLastInFront;
+
+	bool Overlapping;
+
+	TArray<AActor*> OverlappingActors;
 };

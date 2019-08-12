@@ -110,15 +110,6 @@ void APortalSystemCharacter::BeginPlay()
 	}
 }
 
-void APortalSystemCharacter::Tick(float DeltaTime)
-{
-	if (UGameplayStatics::GetPlayerController(GetWorld(), 0) != nullptr)
-	{
-		APortalSystemPlayerController* PlayerController = Cast<APortalSystemPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
-		PlayerController->GetPortalManager()->UpdatePortals(DeltaTime);
-	}
-}
-
 void APortalSystemCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
 	// set up gameplay key bindings
