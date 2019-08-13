@@ -45,12 +45,9 @@ bool UMathLibrary::CheckIsCrossing(FVector const& Point, FVector const& PortalLo
 	FPlane PortalPlane = FPlane(PortalLocation, PortalNormal);
 	FVector IntersectionPoint;
 	bool IsIntersecting = FMath::SegmentPlaneIntersection(out_LastPosition,	Point, PortalPlane, IntersectionPoint);
-	UE_LOG(LogTemp, Warning, TEXT("IsIntersecting %s"), (IsIntersecting ? TEXT("True") : TEXT("False")));
 	bool IsInFront = CheckIsInFront(Point, PortalLocation, PortalNormal);
-	UE_LOG(LogTemp, Warning, TEXT("IsInFront %s"), (IsInFront ? TEXT("True") : TEXT("False")));
-	UE_LOG(LogTemp, Warning, TEXT("out_LastInFront %s"), (out_LastInFront ? TEXT("True") : TEXT("False")));
-
 	bool IsCrossing = false;
+
 	if (IsIntersecting && !IsInFront && out_LastInFront)
 	{
 		IsCrossing = true;

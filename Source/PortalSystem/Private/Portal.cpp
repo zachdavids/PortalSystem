@@ -3,6 +3,7 @@
 
 #include "Portal.h"
 #include "MathLibrary.h"
+#include "DrawDebugHelpers.h"
 #include "PortalSystemCharacter.h"
 #include "PortalSystemPlayerController.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -10,6 +11,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/BoxComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 // Sets default values
 APortal::APortal()
@@ -27,10 +29,9 @@ APortal::APortal()
 
 	BoxComponent = CreateDefaultSubobject<UBoxComponent>(FName("BoxComponent"));
 	BoxComponent->SetupAttachment(RootComponent);
-	BoxComponent->SetBoxExtent(FVector(75, 65, 100));
+	BoxComponent->SetBoxExtent(FVector(20, 65, 100));
 	BoxComponent->OnComponentBeginOverlap.AddDynamic(this, &APortal::OnOverlapBegin);
 	BoxComponent->OnComponentEndOverlap.AddDynamic(this, &APortal::OnOverlapEnd);
-
 }
 
 // Called when the game starts or when spawned
@@ -56,8 +57,10 @@ void APortal::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	TeleportActors();
-
+	if (Overlapping)
+	{
+		TeleportActors();
+	}
 }
 
 void APortal::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -84,26 +87,24 @@ void APortal::TeleportActors()
 		APortalSystemCharacter* Character = Cast<APortalSystemCharacter>(PlayerController->GetCharacter());
 		if (Character != nullptr)
 		{
-			if (Overlapping)
+			if (UMathLibrary::CheckIsCrossing(Character->GetActorLocation(), GetActorLocation(), GetActorForwardVector(), bLastInFront, LastPosition))
 			{
-				if (UMathLibrary::CheckIsCrossing(Character->GetActorLocation(), GetActorLocation(), GetActorForwardVector(), bLastInFront, LastPosition))
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Teleporting from %s"), *GetName());
+				UE_LOG(LogTemp, Warning, TEXT("Teleported to %s"), *Target->GetName());
+				FVector CurrentVelocity = Character->GetCharacterMovement()->Velocity;
 
-					FHitResult HitResult;
-					FVector NewLocation = UMathLibrary::ConvertLocation(Character->GetActorLocation(), this, Target);
-					Character->SetActorLocation(NewLocation, false, &HitResult, ETeleportType::TeleportPhysics);
+				FHitResult HitResult;
+				FVector NewLocation = UMathLibrary::ConvertLocation(Character->GetActorLocation(), this, Target);
+				Character->SetActorLocation(NewLocation, false, &HitResult, ETeleportType::TeleportPhysics);
 
-					FRotator NewRotation = UMathLibrary::ConvertRotation(Character->GetActorRotation(), this, Target);
-					Character->SetActorRotation(NewRotation);
+				Character->SetActorRotation(UMathLibrary::ConvertRotation(Character->GetActorRotation(), this, Target));
+				PlayerController->SetControlRotation(UMathLibrary::ConvertRotation(PlayerController->GetControlRotation(), this, Target));
 
-					NewRotation = UMathLibrary::ConvertRotation(PlayerController->GetControlRotation(), this, Target);
-					PlayerController->SetControlRotation(NewRotation);
+				//TODO Add Previous Velocity
+				Character->GetCharacterMovement()->Velocity = FVector::ZeroVector;
 
-					LastPosition = NewLocation;
+				LastPosition = NewLocation;
 
-					Overlapping = false;
-				}
+				Overlapping = false;
 			}
 		}
 	}

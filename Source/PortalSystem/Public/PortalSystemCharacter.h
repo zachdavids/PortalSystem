@@ -87,6 +87,8 @@ protected:
 
 	void OnRedFire();
 
+	bool CheckValidSpawnPlane(FVector Start, FVector Center, FVector CenterNormal, FVector Size, AActor* ObjectToSpawnOn);
+
 	APortal* SpawnPortal(FColor Color);
 
 	/** Resets HMD orientation and position in VR. */

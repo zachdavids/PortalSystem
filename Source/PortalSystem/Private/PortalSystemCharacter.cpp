@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PortalSystemCharacter.h"
+#include "DrawDebugHelpers.h"
 #include "PortalSystemProjectile.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
@@ -175,6 +176,65 @@ void APortalSystemCharacter::OnRedFire()
 	}
 }
 
+bool APortalSystemCharacter::CheckValidSpawnPlane(FVector Start, FVector Center, FVector CenterNormal, FVector Size, AActor* ObjectToSpawnOn)
+{
+	FHitResult CornerOutHit;
+	const FVector TopLeft = Center + CenterNormal.Rotation().RotateVector(FVector(0, -Size.Y, Size.Z));
+	const FVector TopRight = Center + CenterNormal.Rotation().RotateVector(FVector(0, Size.Y, Size.Z));
+	const FVector BottomLeft = Center + CenterNormal.Rotation().RotateVector(FVector(0, -Size.Y, -Size.Z));
+	const FVector BottomRight = Center + CenterNormal.Rotation().RotateVector(FVector(0, Size.Y, -Size.Z));
+
+	if (GetWorld()->LineTraceSingleByChannel(CornerOutHit, TopLeft + CenterNormal * 500, TopLeft - CenterNormal * 500, ECC_Visibility))
+	{
+		if (CornerOutHit.GetActor() != ObjectToSpawnOn || CornerOutHit.ImpactNormal != CenterNormal)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+	if (GetWorld()->LineTraceSingleByChannel(CornerOutHit, TopRight + CenterNormal * 500, TopRight - CenterNormal * 500, ECC_Visibility))
+	{
+		if (CornerOutHit.GetActor() != ObjectToSpawnOn || CornerOutHit.ImpactNormal != CenterNormal)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+	if (GetWorld()->LineTraceSingleByChannel(CornerOutHit, BottomLeft + CenterNormal * 500, BottomLeft - CenterNormal * 500, ECC_Visibility))
+	{
+		if (CornerOutHit.GetActor() != ObjectToSpawnOn || CornerOutHit.ImpactNormal != CenterNormal)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+	if (GetWorld()->LineTraceSingleByChannel(CornerOutHit, BottomRight + CenterNormal * 500, BottomRight - CenterNormal * 500, ECC_Visibility))
+	{
+		if (CornerOutHit.GetActor() != ObjectToSpawnOn || CornerOutHit.ImpactNormal != CenterNormal)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+	return true;
+}
+
 APortal* APortalSystemCharacter::SpawnPortal(FColor Color)
 {
 	APortal* Portal = nullptr;
@@ -189,16 +249,19 @@ APortal* APortalSystemCharacter::SpawnPortal(FColor Color)
 			const FVector Start = ((FP_MuzzleLocation != nullptr) ? FP_MuzzleLocation->GetComponentLocation() : GetActorLocation()) + SpawnRotation.RotateVector(GunOffset);
 			const FVector End = FirstPersonCameraComponent->GetForwardVector() * 5000.f + Start;
 
-			FHitResult OutHit;
-			if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility))
+			FHitResult CenterOutHit;
+			if (GetWorld()->LineTraceSingleByChannel(CenterOutHit, Start, End, ECC_Visibility))
 			{
-				if (OutHit.bBlockingHit)
+				if (CheckValidSpawnPlane(Start, CenterOutHit.Location, CenterOutHit.ImpactNormal, FVector(20, 65, 100), CenterOutHit.GetActor()))
 				{
+					//Spawn Actor
 					FActorSpawnParameters ActorSpawnParams;
 					ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-					FVector SpawnLocation = OutHit.Location + (OutHit.ImpactNormal);
-					Portal = World->SpawnActor<APortal>(PortalClass, SpawnLocation, OutHit.ImpactNormal.Rotation(), ActorSpawnParams);
+					FVector SpawnLocation = CenterOutHit.Location + (CenterOutHit.ImpactNormal);
+
+					Portal = World->SpawnActor<APortal>(PortalClass, SpawnLocation, CenterOutHit.ImpactNormal.Rotation(), ActorSpawnParams);
+
 					//TODO Set Portal Color
 				}
 			}

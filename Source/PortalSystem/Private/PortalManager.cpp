@@ -6,7 +6,6 @@
 #include "PortalSystemCharacter.h"
 #include "PortalSystemPlayerController.h"
 #include "MathLibrary.h"
-#include "DrawDebugHelpers.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "EngineUtils.h"
 
