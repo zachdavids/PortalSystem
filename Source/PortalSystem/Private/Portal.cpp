@@ -24,14 +24,14 @@ APortal::APortal()
 	SetRootComponent(RootComponent);
 
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName("MeshComponent"));
-	MeshComponent->SetupAttachment(RootComponent);
 	MeshComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	MeshComponent->SetupAttachment(RootComponent);
 
 	BoxComponent = CreateDefaultSubobject<UBoxComponent>(FName("BoxComponent"));
-	BoxComponent->SetupAttachment(RootComponent);
-	BoxComponent->SetBoxExtent(FVector(20, 65, 100));
+	BoxComponent->SetBoxExtent(FVector(20, 100, 150));
 	BoxComponent->OnComponentBeginOverlap.AddDynamic(this, &APortal::OnOverlapBegin);
 	BoxComponent->OnComponentEndOverlap.AddDynamic(this, &APortal::OnOverlapEnd);
+	BoxComponent->SetupAttachment(RootComponent);
 }
 
 // Called when the game starts or when spawned
@@ -116,6 +116,16 @@ void APortal::SetTarget(APortal* NewTarget)
 	{
 		Target = NewTarget;
 	}
+}
+
+void APortal::SetPortalSurface(AActor* Surface)
+{
+	PortalSurface = Surface;
+}
+
+void APortal::SetColor(FColor Color)
+{
+	MaterialInstance->SetVectorParameterValue(FName("Color"), Color);
 }
 
 APortal* APortal::GetTarget()

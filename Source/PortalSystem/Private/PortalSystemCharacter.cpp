@@ -265,20 +265,20 @@ APortal* APortalSystemCharacter::SpawnPortal(FColor Color)
 			const FVector Start = ((FP_MuzzleLocation != nullptr) ? FP_MuzzleLocation->GetComponentLocation() : GetActorLocation()) + SpawnRotation.RotateVector(GunOffset);
 			const FVector End = FirstPersonCameraComponent->GetForwardVector() * 5000.f + Start;
 
-			FHitResult CenterOutHit;
-			if (GetWorld()->LineTraceSingleByChannel(CenterOutHit, Start, End, ECC_Visibility))
+			FHitResult OutHit;
+			if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility))
 			{
-				FVector SpawnLocation = CenterOutHit.Location;
-				if (CheckValidSpawnPlane(SpawnLocation, CenterOutHit.ImpactNormal, FVector(20, 65, 100)))
+				FVector SpawnLocation = OutHit.Location;
+				if (CheckValidSpawnPlane(SpawnLocation, OutHit.ImpactNormal, FVector(20, 100, 150)))
 				{
 					FActorSpawnParameters ActorSpawnParams;
 					ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-					SpawnLocation += CenterOutHit.ImpactNormal;
+					SpawnLocation += OutHit.ImpactNormal;
 
-					Portal = World->SpawnActor<APortal>(PortalClass, SpawnLocation, CenterOutHit.ImpactNormal.Rotation(), ActorSpawnParams);
-
-					//TODO Set Portal Color
+					Portal = World->SpawnActor<APortal>(PortalClass, SpawnLocation, OutHit.ImpactNormal.Rotation(), ActorSpawnParams);
+					Portal->SetColor(Color);
+					Portal->SetPortalSurface(OutHit.GetActor());
 				}
 			}
 		}

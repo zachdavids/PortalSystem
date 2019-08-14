@@ -34,6 +34,10 @@ public:
 
 	void SetTarget(APortal* NewTarget);
 
+	void SetPortalSurface(AActor* Surface);
+
+	void SetColor(FColor Color);
+
 	APortal* GetTarget();
 
 	UTextureRenderTarget2D* GetRenderTarget();
@@ -68,6 +72,8 @@ private:
 	bool bLastInFront;
 
 	bool Overlapping;
+
+	AActor* PortalSurface;
 
 	TArray<AActor*> OverlappingActors;
 };
