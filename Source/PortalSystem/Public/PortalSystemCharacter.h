@@ -87,7 +87,7 @@ protected:
 
 	void OnRedFire();
 
-	bool CheckValidSpawnPlane(FVector Start, FVector Center, FVector CenterNormal, FVector Size, AActor* ObjectToSpawnOn);
+	bool CheckValidSpawnPlane(FVector& out_Center, FVector const& CenterNormal, FVector const& Size);
 
 	APortal* SpawnPortal(FColor Color);
 

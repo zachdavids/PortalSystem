@@ -226,26 +226,24 @@ bool APortalSystemCharacter::CheckValidSpawnPlane(FVector& Center, FVector const
 
 	if (!TopLeftHit & !TopRightHit)
 	{
-		Center -= CenterNormal.Rotation().RotateVector(FVector(0, 0, 1.0f));
-		return CheckValidSpawnPlane(Center, CenterNormal, Size);
+		//return CheckValidSpawnPlane(Center - CenterNormal.Rotation().RotateVector(FVector(0, 0, 1.0f)), CenterNormal, Size);
 	}
 
 	if (!TopLeftHit & !BottomLeftHit)
 	{
-		Center += CenterNormal.Rotation().RotateVector(FVector(0, 1.0f, 0));
-		return CheckValidSpawnPlane(Center, CenterNormal, Size);
+		//return CheckValidSpawnPlane(Center - CenterNormal.Rotation().RotateVector(FVector(0, 1.0f, 0)), CenterNormal, Size);
 	}
 
 	if (!TopRightHit && !BottomRightHit)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("HI"));
 		Center -= CenterNormal.Rotation().RotateVector(FVector(0, 1.0f, 0));
 		return CheckValidSpawnPlane(Center, CenterNormal, Size);
 	}
 
 	if (!BottomLeftHit && !BottomRightHit)
 	{
-		Center += CenterNormal.Rotation().RotateVector(FVector(0, 0, 1.0f));
-		return CheckValidSpawnPlane(Center, CenterNormal, Size);
+		//return CheckValidSpawnPlane(Center + CenterNormal.Rotation().RotateVector(FVector(0, 0, 1.0f)), CenterNormal, Size);
 	}
 
 	return true;
