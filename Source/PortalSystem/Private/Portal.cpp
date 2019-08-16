@@ -68,6 +68,10 @@ void APortal::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherA
 	if (OtherActor->IsA(APortalSystemCharacter::StaticClass()))
 	{
 		Overlapping = true;
+		if (PortalSurface != nullptr)
+		{
+			PortalSurface->SetActorEnableCollision(false);
+		}
 	}
 }
 
@@ -76,6 +80,10 @@ void APortal::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherAct
 	if (OtherActor->IsA(APortalSystemCharacter::StaticClass()))
 	{
 		Overlapping = false;
+		if (PortalSurface != nullptr)
+		{
+			PortalSurface->SetActorEnableCollision(true);
+		}
 	}
 }
 
@@ -93,16 +101,15 @@ void APortal::TeleportActors()
 				FVector CurrentVelocity = Character->GetCharacterMovement()->Velocity;
 
 				FHitResult HitResult;
-				FVector NewLocation = UMathLibrary::ConvertLocation(Character->GetActorLocation(), this, Target);
-				Character->SetActorLocation(NewLocation, false, &HitResult, ETeleportType::TeleportPhysics);
-
-				Character->SetActorRotation(UMathLibrary::ConvertRotation(Character->GetActorRotation(), this, Target));
+				FVector Location = UMathLibrary::ConvertLocation(Character->GetActorLocation(), this, Target);
+				FRotator Rotation = UMathLibrary::ConvertRotation(Character->GetActorRotation(), this, Target);
+				Character->SetActorLocationAndRotation(Location, Rotation, false, &HitResult, ETeleportType::TeleportPhysics);
 				PlayerController->SetControlRotation(UMathLibrary::ConvertRotation(PlayerController->GetControlRotation(), this, Target));
 
 				//TODO Add Previous Velocity
 				Character->GetCharacterMovement()->Velocity = FVector::ZeroVector;
 
-				LastPosition = NewLocation;
+				LastPosition = Location;
 
 				Overlapping = false;
 			}

@@ -273,10 +273,19 @@ APortal* APortalSystemCharacter::SpawnPortal(FColor Color)
 				{
 					FActorSpawnParameters ActorSpawnParams;
 					ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
+					
 					SpawnLocation += OutHit.ImpactNormal;
+					FRotator SpawnRotation = OutHit.ImpactNormal.Rotation();
+					if (FVector::DotProduct(OutHit.ImpactNormal, FVector::UpVector) > KINDA_SMALL_NUMBER)
+					{
+						SpawnRotation.Roll -= GetActorRotation().Yaw;
+					}
+					else if (FVector::DotProduct(OutHit.ImpactNormal, FVector::UpVector) < -KINDA_SMALL_NUMBER)
+					{
+						SpawnRotation.Roll += GetActorRotation().Yaw;
+					}
 
-					Portal = World->SpawnActor<APortal>(PortalClass, SpawnLocation, OutHit.ImpactNormal.Rotation(), ActorSpawnParams);
+					Portal = World->SpawnActor<APortal>(PortalClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
 					Portal->SetColor(Color);
 					Portal->SetPortalSurface(OutHit.GetActor());
 				}

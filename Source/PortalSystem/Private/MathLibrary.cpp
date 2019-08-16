@@ -2,6 +2,7 @@
 
 
 #include "MathLibrary.h"
+#include "Portal.h"
 #include "GameFramework/Actor.h"
 
 FVector UMathLibrary::ConvertLocation(FVector const& Location, AActor* Portal, AActor* Target)
@@ -23,13 +24,25 @@ FVector UMathLibrary::ConvertLocation(FVector const& Location, AActor* Portal, A
 
 FRotator UMathLibrary::ConvertRotation(FRotator const& Rotation, AActor* Portal, AActor* Target)
 {
-	FTransform SourceTransform = Portal->GetActorTransform();
-	FTransform TargetTransform = Target->GetActorTransform();
+	FVector RotationAdjustment(0.f, 0.f, -180.f);
+	FVector LocalAdjustment = FVector::ZeroVector;
 
-	FQuat QuatRotation = FQuat::MakeFromEuler(FVector(0, 0, -180.f)) * FQuat(Rotation);
-	FQuat LocalQuat = SourceTransform.GetRotation().Inverse() * QuatRotation;
-	FQuat NewWorldQuat = TargetTransform.GetRotation() * LocalQuat;
+	if (FVector::DotProduct(Portal->GetActorForwardVector(), FVector::UpVector) > KINDA_SMALL_NUMBER)
+	{
+		LocalAdjustment.X = FMath::UnwindDegrees(Portal->GetTransform().GetRotation().Euler().X);
+		LocalAdjustment.Y = 180.f;
+		RotationAdjustment.Z += LocalAdjustment.X;
+	}
+	else if (FVector::DotProduct(Portal->GetActorForwardVector(), FVector::UpVector) < -KINDA_SMALL_NUMBER)
+	{
+		LocalAdjustment.X = FMath::UnwindDegrees(Portal->GetTransform().GetRotation().Euler().X);
+		LocalAdjustment.Y = -180.f;
+		RotationAdjustment.Z -= LocalAdjustment.X;
+	}
 
+	FQuat QuatRotation = FQuat::MakeFromEuler(RotationAdjustment) * FQuat(Rotation);
+	FQuat LocalQuat = FQuat::MakeFromEuler(LocalAdjustment) * Portal->GetActorTransform().GetRotation().Inverse() * QuatRotation;
+	FQuat NewWorldQuat = Target->GetActorTransform().GetRotation() * LocalQuat;
 	return NewWorldQuat.Rotator();
 }
 

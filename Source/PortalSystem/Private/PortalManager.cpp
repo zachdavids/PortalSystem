@@ -3,7 +3,9 @@
 
 #include "PortalManager.h"
 #include "Portal.h"
+#include "DrawDebugHelpers.h"
 #include "PortalSystemCharacter.h"
+#include "Components/ArrowComponent.h"
 #include "PortalSystemPlayerController.h"
 #include "MathLibrary.h"
 #include "Components/SceneCaptureComponent2D.h"
@@ -16,6 +18,9 @@ APortalManager::APortalManager(const FObjectInitializer& ObjectInitializer) :
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickGroup = ETickingGroup::TG_PostUpdateWork;
+
+	RootComponent = CreateDefaultSubobject<USceneComponent>(FName("RootComponent"));
+	SetRootComponent(RootComponent);
 
 	CaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(FName("CaptureComponent"));
 	CaptureComponent->SetupAttachment(RootComponent);
@@ -73,8 +78,9 @@ void APortalManager::UpdatePortals()
 				APortal* Target = Portal->GetTarget();
 				if (Portal != nullptr && Target != nullptr)
 				{
-					CaptureComponent->SetWorldLocation(UMathLibrary::ConvertLocation(CameraManager->GetCameraLocation(), Portal, Target));
-					CaptureComponent->SetWorldRotation(UMathLibrary::ConvertRotation(CameraManager->GetCameraRotation(), Portal, Target));
+					FVector Position = UMathLibrary::ConvertLocation(CameraManager->GetCameraLocation(), Portal, Target);
+					FRotator Rotation = UMathLibrary::ConvertRotation(CameraManager->GetCameraRotation(), Portal, Target);
+					CaptureComponent->SetWorldLocationAndRotation(Position, Rotation);
 					CaptureComponent->ClipPlaneNormal = Target->GetActorForwardVector();
 					CaptureComponent->ClipPlaneBase = Target->GetActorLocation() + (CaptureComponent->ClipPlaneNormal * -1.5f);;
 					CaptureComponent->CustomProjectionMatrix = OwningController->GetCameraProjectionMatrix();

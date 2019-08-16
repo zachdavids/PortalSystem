@@ -7,6 +7,7 @@
 #include "PortalManager.generated.h"
 
 class APortal;
+class UArrowComponent;
 class USceneCaptureComponent2D;
 class APortalSystemPlayerController;
 
