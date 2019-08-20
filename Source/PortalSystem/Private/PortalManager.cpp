@@ -92,17 +92,17 @@ void APortalManager::UpdatePortals()
 	}
 }
 
-void APortalManager::RequestTeleport(APortal* Portal, AActor* TeleportTarget)
-{
-
-}
-
 void APortalManager::SetControllerOwner(APortalSystemPlayerController* NewOwner)
 {
 	OwningController = NewOwner;
 }
 
-void APortalManager::SetBluePortal(APortal* NewPortal)
+void APortalManager::SetPortalClass(TSubclassOf<class APortal> Class)
+{
+	PortalClass = Class;
+}
+
+void APortalManager::SpawnBluePortal(const FVector& Start, const FVector& End)
 {
 	if (BluePortal != nullptr)
 	{
@@ -110,16 +110,26 @@ void APortalManager::SetBluePortal(APortal* NewPortal)
 		RedPortal->SetTarget(nullptr);
 	}
 
-	BluePortal = NewPortal;
+	BluePortal = SpawnPortal(Start, End);
 
-	if (RedPortal != nullptr)
+	if (BluePortal != nullptr)
 	{
-		BluePortal->SetTarget(RedPortal);
-		RedPortal->SetTarget(BluePortal);
+		BluePortal->SetColor(FColor::Blue);
+		if (RedPortal != nullptr)
+		{
+			BluePortal->SetTarget(RedPortal);
+			RedPortal->SetTarget(BluePortal);
+		}
+
+		FVector Origin = BluePortal->GetActorLocation();
+		if (VerifyPortalPlacement(BluePortal, Origin))
+		{
+			BluePortal->SetActorLocation(Origin);
+		};
 	}
 }
 
-void APortalManager::SetRedPortal(APortal* NewPortal)
+void APortalManager::SpawnRedPortal(const FVector& Start, const FVector& End)
 {
 	if (RedPortal != nullptr)
 	{
@@ -127,11 +137,113 @@ void APortalManager::SetRedPortal(APortal* NewPortal)
 		BluePortal->SetTarget(nullptr);
 	}
 
-	RedPortal = NewPortal;
+    RedPortal = SpawnPortal(Start, End);
 
-	if (BluePortal != nullptr)
+	if (RedPortal != nullptr)
 	{
-		RedPortal->SetTarget(BluePortal);
-		BluePortal->SetTarget(RedPortal);
+		RedPortal->SetColor(FColor::Red);
+		if (BluePortal != nullptr)
+		{
+			RedPortal->SetTarget(BluePortal);
+			BluePortal->SetTarget(RedPortal);
+		}
+
+		//Todo move this
+		FVector Origin = RedPortal->GetActorLocation();
+		if (VerifyPortalPlacement(RedPortal, Origin))
+		{
+			RedPortal->SetActorLocation(Origin);
+		};
+	}
+}
+
+APortal* APortalManager::SpawnPortal(const FVector& Start, const FVector& End)
+{
+	APortal* Portal = nullptr;
+
+	UWorld* const World = GetWorld();
+	if (World != nullptr && PortalClass != nullptr)
+	{
+		FHitResult OutHit;
+		if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility))
+		{
+			FActorSpawnParameters ActorSpawnParams;
+			ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			FVector Origin = OutHit.Location + OutHit.ImpactNormal;
+			FRotator Rotation = OutHit.ImpactNormal.Rotation();
+			if (FVector::DotProduct(OutHit.ImpactNormal, FVector::UpVector) > KINDA_SMALL_NUMBER)
+			{
+				Rotation.Roll -= GetActorRotation().Yaw;
+			}
+			else if (FVector::DotProduct(OutHit.ImpactNormal, FVector::UpVector) < -KINDA_SMALL_NUMBER)
+			{
+				Rotation.Roll += GetActorRotation().Yaw;
+			}
+
+			Portal = World->SpawnActor<APortal>(PortalClass, Origin, Rotation, ActorSpawnParams);
+			Portal->SetPortalSurface(OutHit.GetActor());
+		}
+	}
+
+	return Portal;
+ }
+
+bool APortalManager::VerifyPortalPlacement(const APortal* Portal, FVector& Origin)
+{
+	FVector OriginalOrigin = Origin;
+
+	FVector Forward = Portal->GetActorForwardVector();
+	FVector Right = Portal->GetActorRightVector();
+	FVector Up = Portal->GetActorUpVector();
+
+	//Check if surface is moving
+	const AActor* Surface = Portal->GetPortalSurface();
+	if (!Surface->GetVelocity().IsNearlyZero())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Portal surface moving"));
+		return false;
+	}
+
+	//Check if portal is overlapping linked portal
+	const APortal* Target = Portal->GetTarget();
+	if (Target != nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Checking overlapping portals"));
+		FitPortalAroundTargetPortal(Portal, Target, Forward, Right, Up, Origin);
+	}
+
+	return true;
+}
+
+void APortalManager::FitPortalAroundTargetPortal(const APortal* Portal, const APortal* Target, const FVector& Forward, const FVector& Right, const FVector& Up, FVector& Origin)
+{
+	FVector TargetForward = Target->GetActorForwardVector();
+
+	//Reposition if portals are on the same face
+	if (FVector::DotProduct(Forward, TargetForward) > 1.f - KINDA_SMALL_NUMBER)
+	{
+		FVector Distance = Origin - Target->GetActorLocation();
+		FVector RightProjection = FVector::DotProduct(Distance, Right) * Right;
+		FVector UpProjection = FVector::DotProduct(Distance, Up) * Up;
+
+		float RightProjectionLength = RightProjection.Size();
+		float UpProjectionLength = UpProjection.Size();
+
+		if (RightProjectionLength < 1.0f)
+		{
+			RightProjection = Right;
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("Right: %f"), RightProjectionLength);
+		UE_LOG(LogTemp, Warning, TEXT("Up: %f"), UpProjectionLength);
+
+		FVector Size = Portal->CalculateComponentsBoundingBoxInLocalSpace().GetSize();
+		UE_LOG(LogTemp, Warning, TEXT("Up: %s"), *Size.ToString());
+		if (UpProjectionLength < Size.Z && RightProjectionLength < Size.Y)
+		{
+			RightProjection.Normalize();
+			Origin += RightProjection * (Size.Y - RightProjectionLength + 1.0f);
+		}
 	}
 }

@@ -38,7 +38,9 @@ public:
 
 	void SetColor(FColor Color);
 
-	APortal* GetTarget();
+	AActor* GetPortalSurface() const;
+
+	APortal* GetTarget() const;
 
 	UTextureRenderTarget2D* GetRenderTarget();
 

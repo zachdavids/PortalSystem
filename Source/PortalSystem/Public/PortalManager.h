@@ -27,12 +27,17 @@ public:
 
 	void SetControllerOwner(APortalSystemPlayerController* NewOwner);
 
-	void SetBluePortal(APortal* NewPortal);
+	void SetPortalClass(TSubclassOf<class APortal> Class);
 
-	void SetRedPortal(APortal* NewPortal);
+	void SpawnBluePortal(const FVector& Start, const FVector& End);
 
-	UFUNCTION(BlueprintCallable, Category = "Portal")
-	void RequestTeleport(APortal* Portal, AActor* TeleportTarget);
+	void SpawnRedPortal(const FVector& Start, const FVector& End);
+
+	APortal* SpawnPortal(const FVector& Start, const FVector& End);
+
+	bool VerifyPortalPlacement(const APortal* Portal, FVector& Origin);
+
+	void FitPortalAroundTargetPortal(const APortal* Portal, const APortal* Target, const FVector& Forward, const FVector& Right, const FVector& Up, FVector& Origin);
 
 protected:
 	// Called when the game starts or when spawned
@@ -49,4 +54,8 @@ private:
 
 	UPROPERTY()
 	APortalSystemPlayerController* OwningController;
+
+	/** Portal class to spawn */
+	UPROPERTY()
+	TSubclassOf<class APortal> PortalClass;
 };

@@ -14,6 +14,7 @@ void APortalSystemPlayerController::BeginPlay()
 	PortalManager = GetWorld()->SpawnActor<APortalManager>(APortalManager::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
 	PortalManager->AttachToActor(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	PortalManager->SetControllerOwner(this);
+	PortalManager->SetPortalClass(PortalClass);
 }
 
 FMatrix APortalSystemPlayerController::GetCameraProjectionMatrix()

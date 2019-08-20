@@ -5,8 +5,10 @@
 #include "PortalSystemProjectile.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/InputSettings.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
@@ -22,6 +24,13 @@ DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
 //////////////////////////////////////////////////////////////////////////
 // APortalSystemCharacter
+
+static TAutoConsoleVariable<float> CVarEncroachEpsilon(
+	TEXT("p.EncroachEpsilon"),
+	0.15f,
+	TEXT("Epsilon value used during encroachment checking for shape components\n")
+	TEXT("0: use full sized shape. > 0: shrink shape size by this amount (world units)"),
+	ECVF_Default);
 
 APortalSystemCharacter::APortalSystemCharacter()
 {
@@ -150,11 +159,11 @@ void APortalSystemCharacter::OnBlueFire()
 		APortalManager* PortalManager = PlayerController->GetPortalManager();
 		if (PortalManager != nullptr)
 		{
-			APortal* Portal = SpawnPortal(FColor::Blue);
-			if (Portal != nullptr)
-			{
-				PortalManager->SetBluePortal(Portal);
-			}
+			Fire();
+
+			const FVector Start = ((FP_MuzzleLocation != nullptr) ? FP_MuzzleLocation->GetComponentLocation() : GetActorLocation()) + GetControlRotation().RotateVector(GunOffset);
+			const FVector End = Start + FirstPersonCameraComponent->GetForwardVector() * 5000.f;
+			PortalManager->SpawnBluePortal(Start, End);
 		}
 	}
 }
@@ -167,132 +176,85 @@ void APortalSystemCharacter::OnRedFire()
 		APortalManager* PortalManager = PlayerController->GetPortalManager();
 		if (PortalManager != nullptr)
 		{
-			APortal* Portal = SpawnPortal(FColor::Red);
-			if (Portal != nullptr)
-			{
-				PortalManager->SetRedPortal(Portal);
-			}
+			Fire();
+
+			const FVector Start = ((FP_MuzzleLocation != nullptr) ? FP_MuzzleLocation->GetComponentLocation() : GetActorLocation()) + GetControlRotation().RotateVector(GunOffset);
+			const FVector End = Start + FirstPersonCameraComponent->GetForwardVector() * 5000.f;
+			PortalManager->SpawnRedPortal(Start, End);
 		}
 	}
 }
 
-bool APortalSystemCharacter::CheckValidSpawnPlane(FVector& Center, FVector const& CenterNormal, FVector const& Size)
+//bool APortalSystemCharacter::CheckSurfaceSize(const APortal* Portal, const FVector& Extent)
+//{
+//	FBox SurfaceBounds = Portal->GetPortalSurface()->GetComponentsBoundingBox();
+//	FVector SurfaceExtent = Portal->GetActorForwardVector().Rotation().RotateVector(SurfaceBounds.GetExtent()).GetAbs();
+//
+//	return SurfaceExtent.Y >= Extent.Y && SurfaceExtent.Z >= Extent.Z;
+//}
+//
+//bool APortalSystemCharacter::CheckWithinSurface(const APortal* Portal, FVector& Center, const FVector& Extent)
+//{
+//	FHitResult CornerOutHit;
+//	const FVector PortalForward = Portal->GetActorForwardVector();
+//	const FVector PortalRight = -Portal->GetActorRightVector();
+//	const FVector PortalUp = Portal->GetActorUpVector();
+//	const AActor* PortalSurface = Portal->GetPortalSurface();
+//
+//	const FVector TopLeft = Center + (PortalRight * -Extent.Y) + (PortalUp * Extent.Z);
+//	bool TopLeftHit = GetWorld()->LineTraceSingleByChannel(CornerOutHit, TopLeft + PortalForward * 10, TopLeft - PortalForward * 10, ECC_Visibility);
+//
+//	const FVector TopRight = Center + (PortalRight * Extent.Y) + (PortalUp * Extent.Z);
+//	bool TopRightHit = GetWorld()->LineTraceSingleByChannel(CornerOutHit, TopRight + PortalForward * 10, TopRight - PortalForward * 10, ECC_Visibility);
+//
+//	const FVector BottomLeft = Center + (PortalRight * -Extent.Y) + (PortalUp * -Extent.Z);
+//	bool BottomLeftHit = GetWorld()->LineTraceSingleByChannel(CornerOutHit, BottomLeft + PortalForward * 10, BottomLeft - PortalForward * 10, ECC_Visibility);
+//
+//	const FVector BottomRight = Center + (PortalRight * Extent.Y) + (PortalUp * -Extent.Z);
+//	bool BottomRightHit = GetWorld()->LineTraceSingleByChannel(CornerOutHit, BottomRight + PortalForward * 10, BottomRight - PortalForward * 10, ECC_Visibility);
+//
+//	if (!BottomLeftHit && !BottomRightHit)
+//	{
+//		Center += PortalUp;
+//		return CheckWithinSurface(Portal, Center, Extent);
+//	}
+//
+//	if (!TopLeftHit & !TopRightHit)
+//	{
+//		Center -= PortalUp;
+//		return CheckWithinSurface(Portal, Center, Extent);
+//	}
+//
+//	if (!TopLeftHit & !BottomLeftHit)
+//	{
+//		Center += PortalRight;
+//		return CheckWithinSurface(Portal, Center, Extent);
+//	}
+//
+//	if (!TopRightHit && !BottomRightHit)
+//	{
+//		Center -= PortalRight;
+//		return CheckWithinSurface(Portal, Center, Extent);
+//	}
+//
+//	return true;
+//}
+
+//// perf note: this is faster if ProposedAdjustment is null, since it can early out on first penetration
+//bool APortalSystemCharacter::CheckBlockingGeometry(const APortal* Portal, FVector TestLocation, FRotator TestRotation, FVector* ProposedAdjustment)
+//{
+//
+//}
+//
+///** Tests if the given component overlaps any blocking geometry if it were placed at the given world transform, optionally returns a suggested translation to get the component away from its overlaps. */
+//bool APortalSystemCharacter::CheckComponentBlockingGeometry(UWorld const* World, APortal const* Portal, UPrimitiveComponent const* PrimComp, FTransform const& TestWorldTransform, FVector* OutProposedAdjustment, const TArray<AActor*>& IgnoreActors)
+//{
+//
+//}
+
+
+void APortalSystemCharacter::Fire()
 {
-	FHitResult CornerOutHit;
-
-	bool TopLeftHit = true;
-	const FVector TopLeft = Center + CenterNormal.Rotation().RotateVector(FVector(0, -Size.Y, Size.Z));
-	if (GetWorld()->LineTraceSingleByChannel(CornerOutHit, TopLeft + CenterNormal * 10, TopLeft - CenterNormal * 10, ECC_Visibility))
-	{
-		if (CornerOutHit.ImpactNormal != CenterNormal) return false;
-	}
-	else
-	{
-		TopLeftHit = false;
-	}
-
-	bool TopRightHit = true;
-	const FVector TopRight = Center + CenterNormal.Rotation().RotateVector(FVector(0, Size.Y, Size.Z));
-	if (GetWorld()->LineTraceSingleByChannel(CornerOutHit, TopRight + CenterNormal * 10, TopRight - CenterNormal * 10, ECC_Visibility))
-	{
-		if (CornerOutHit.ImpactNormal != CenterNormal) return false;
-	}
-	else
-	{
-		TopRightHit = false;
-	}
-
-	bool BottomLeftHit = true;
-	const FVector BottomLeft = Center + CenterNormal.Rotation().RotateVector(FVector(0, -Size.Y, -Size.Z));
-	if (GetWorld()->LineTraceSingleByChannel(CornerOutHit, BottomLeft + CenterNormal * 10, BottomLeft - CenterNormal * 10, ECC_Visibility))
-	{
-		if (CornerOutHit.ImpactNormal != CenterNormal) return false;
-	}
-	else
-	{
-		BottomLeftHit = false;
-	}
-
-	bool BottomRightHit = true;
-	const FVector BottomRight = Center + CenterNormal.Rotation().RotateVector(FVector(0, Size.Y, -Size.Z));
-	if (GetWorld()->LineTraceSingleByChannel(CornerOutHit, BottomRight + CenterNormal * 10, BottomRight - CenterNormal * 10, ECC_Visibility))
-	{
-		if (CornerOutHit.ImpactNormal != CenterNormal) return false;
-	}
-	else
-	{
-		BottomRightHit = false;
-	}
-
-	if (!TopLeftHit & !TopRightHit)
-	{
-		Center -= CenterNormal.Rotation().RotateVector(FVector(0, 0, 1.0f));
-		return CheckValidSpawnPlane(Center, CenterNormal, Size);
-	}
-
-	if (!TopLeftHit & !BottomLeftHit)
-	{
-		Center += CenterNormal.Rotation().RotateVector(FVector(0, 1.0f, 0));
-		return CheckValidSpawnPlane(Center, CenterNormal, Size);
-	}
-
-	if (!TopRightHit && !BottomRightHit)
-	{
-		Center -= CenterNormal.Rotation().RotateVector(FVector(0, 1.0f, 0));
-		return CheckValidSpawnPlane(Center, CenterNormal, Size);
-	}
-
-	if (!BottomLeftHit && !BottomRightHit)
-	{
-		Center += CenterNormal.Rotation().RotateVector(FVector(0, 0, 1.0f));
-		return CheckValidSpawnPlane(Center, CenterNormal, Size);
-	}
-
-	return true;
-}
-
-APortal* APortalSystemCharacter::SpawnPortal(FColor Color)
-{
-	APortal* Portal = nullptr;
-
-	if (PortalClass != NULL)
-	{
-		UWorld* const World = GetWorld();
-		if (World != nullptr)
-		{
-			const FRotator SpawnRotation = GetControlRotation();
-			// MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position
-			const FVector Start = ((FP_MuzzleLocation != nullptr) ? FP_MuzzleLocation->GetComponentLocation() : GetActorLocation()) + SpawnRotation.RotateVector(GunOffset);
-			const FVector End = FirstPersonCameraComponent->GetForwardVector() * 5000.f + Start;
-
-			FHitResult OutHit;
-			if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility))
-			{
-				FVector SpawnLocation = OutHit.Location;
-				if (CheckValidSpawnPlane(SpawnLocation, OutHit.ImpactNormal, FVector(20, 100, 150)))
-				{
-					FActorSpawnParameters ActorSpawnParams;
-					ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-					
-					SpawnLocation += OutHit.ImpactNormal;
-					FRotator SpawnRotation = OutHit.ImpactNormal.Rotation();
-					if (FVector::DotProduct(OutHit.ImpactNormal, FVector::UpVector) > KINDA_SMALL_NUMBER)
-					{
-						SpawnRotation.Roll -= GetActorRotation().Yaw;
-					}
-					else if (FVector::DotProduct(OutHit.ImpactNormal, FVector::UpVector) < -KINDA_SMALL_NUMBER)
-					{
-						SpawnRotation.Roll += GetActorRotation().Yaw;
-					}
-
-					Portal = World->SpawnActor<APortal>(PortalClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
-					Portal->SetColor(Color);
-					Portal->SetPortalSurface(OutHit.GetActor());
-				}
-			}
-		}
-	}
-
 	// try and play the sound if specified
 	if (FireSound != NULL)
 	{
@@ -309,8 +271,6 @@ APortal* APortalSystemCharacter::SpawnPortal(FColor Color)
 			AnimInstance->Montage_Play(FireAnimation, 1.f);
 		}
 	}
-
-	return Portal;
 }
 
 void APortalSystemCharacter::OnResetVR()

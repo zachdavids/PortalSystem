@@ -65,9 +65,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
 	FVector GunOffset;
 
-	/** Portal class to spawn */
-	UPROPERTY(EditDefaultsOnly, Category = Portal)
-	TSubclassOf<class APortal> PortalClass;
+
 
 	/** Sound to play each time we fire */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
@@ -87,9 +85,7 @@ protected:
 
 	void OnRedFire();
 
-	bool CheckValidSpawnPlane(FVector& out_Center, FVector const& CenterNormal, FVector const& Size);
-
-	APortal* SpawnPortal(FColor Color);
+	void Fire();
 
 	/** Resets HMD orientation and position in VR. */
 	void OnResetVR();
@@ -144,6 +140,5 @@ public:
 	FORCEINLINE class USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
 	/** Returns FirstPersonCameraComponent subobject **/
 	FORCEINLINE class UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
-
 };
 

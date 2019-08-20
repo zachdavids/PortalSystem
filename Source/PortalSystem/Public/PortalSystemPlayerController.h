@@ -18,6 +18,10 @@ public:
 
 	FMatrix GetCameraProjectionMatrix();
 
+	/** Portal class to spawn */
+	UPROPERTY(EditDefaultsOnly, Category = Portal)
+	TSubclassOf<class APortal> PortalClass;
+
 protected:
 	virtual void BeginPlay() override;
 
