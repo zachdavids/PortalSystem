@@ -209,8 +209,24 @@ bool APortalManager::VerifyPortalPlacement(const APortal* Portal, FVector& Origi
 	const APortal* Target = Portal->GetTarget();
 	if (Target != nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Checking overlapping portals"));
 		FitPortalAroundTargetPortal(Portal, Target, Forward, Right, Up, Origin);
+	}
+
+	//Check if portal fits on surface
+	FVector PortalExtent = Portal->CalculateComponentsBoundingBoxInLocalSpace().GetExtent();
+	const FVector TopEdge = Origin + Up * PortalExtent.Z;
+	const FVector BottomEdge = -TopEdge;
+	const FVector RightEdge = Origin + Right * PortalExtent.Y;
+	const FVector LeftEdge = -RightEdge;
+
+	TArray<FHitResult> HitResults;
+	HitResults.SetNumUninitialized(4);
+	TArray<int32> HitIndex;
+	HitIndex.SetNumUninitialized(4);
+	if (!FitPortalOnSurface(Portal, Forward, Right, TopEdge, BottomEdge, RightEdge, LeftEdge, HitResults, HitIndex, Origin))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Portal does not fit on surface"));
+		return false;
 	}
 
 	return true;
@@ -235,15 +251,116 @@ void APortalManager::FitPortalAroundTargetPortal(const APortal* Portal, const AP
 			RightProjection = Right;
 		}
 
-		UE_LOG(LogTemp, Warning, TEXT("Right: %f"), RightProjectionLength);
-		UE_LOG(LogTemp, Warning, TEXT("Up: %f"), UpProjectionLength);
-
 		FVector Size = Portal->CalculateComponentsBoundingBoxInLocalSpace().GetSize();
-		UE_LOG(LogTemp, Warning, TEXT("Up: %s"), *Size.ToString());
 		if (UpProjectionLength < Size.Z && RightProjectionLength < Size.Y)
 		{
 			RightProjection.Normalize();
 			Origin += RightProjection * (Size.Y - RightProjectionLength + 1.0f);
 		}
 	}
+}
+
+bool APortalManager::FitPortalOnSurface(const APortal* Portal, const FVector& Forward, const FVector& Right, const FVector& TopEdge, const FVector& BottomEdge, const FVector& RightEdge, const FVector& LeftEdge, TArray<FHitResult>& HitResults, TArray<int32>& HitIndex, FVector& Origin, int RecursionCount, int HitCount)
+{
+	if (RecursionCount == 0)
+	{
+		return false;
+	}
+
+	int32 OriginalHitCount = HitCount;
+
+	TArray<FVector> Corners;
+	Corners.SetNumUninitialized(4);
+	Corners[0] = Origin + TopEdge + LeftEdge;
+	Corners[1] = Origin + TopEdge + RightEdge;
+	Corners[2] = Origin + BottomEdge + LeftEdge;
+	Corners[3] = Origin + BottomEdge + RightEdge;
+
+	TArray<FHitResult> LocalHitResults = HitResults;
+	for (int i = 0; i < 4; ++i)
+	{
+		if (!LocalHitResults[i].bBlockingHit)
+		{
+			if (TraceCorner(Portal, Origin, Corners[i], Forward, LocalHitResults[i]))
+			{
+				HitIndex[HitCount++] = i;
+			}
+			else
+			{
+				LocalHitResults[i].Reset();
+			}
+		}
+	}
+
+	if (HitCount == OriginalHitCount)
+	{
+		return true;
+	}
+
+	switch (HitCount)
+	{
+	case 0:
+		{
+			return true;
+		}
+		break;
+	case 1:
+		{
+			float Distance = FMath::PointDistToLine(Corners[HitIndex[0]], HitResults[HitIndex[0]]., )
+		}
+	}
+
+	return true;
+}
+
+bool APortalManager::TraceCorner(const APortal* Portal, const FVector& Start, const FVector& End, const FVector& Forward, FHitResult& HitResult)
+{
+	bool bFoundHit = false;
+
+	FCollisionQueryParams TraceParams;
+	TraceParams.bFindInitialOverlaps = true;
+	TraceParams.bTraceComplex = true;
+	TraceParams.AddIgnoredActor(Portal);
+
+	//Check inner surface for intersections
+	FHitResult InnerHitResult;
+	if (GetWorld()->LineTraceSingleByChannel(InnerHitResult, Start - Forward, End - Forward, ECC_Visibility, TraceParams))
+	{
+		HitResult = InnerHitResult;
+		bFoundHit = true;
+	}
+
+	//Check outer surface for intersections
+	FHitResult OuterHitResult;
+	if (GetWorld()->LineTraceSingleByChannel(OuterHitResult, Start + Forward, End + Forward, ECC_Visibility, TraceParams))
+	{
+		HitResult = OuterHitResult;
+		bFoundHit = true;
+	}
+
+	//Check corner overlaps surface. if not, treat as collision
+	float Fraction = 0.f;
+	const FVector Direction = End - Start;
+	FHitResult OverlapHitResult;
+	while (!FMath::IsNearlyEqual(Fraction, 1.0f))
+	{
+		if (!GetWorld()->LineTraceSingleByChannel(OverlapHitResult, Start + (Direction * Fraction) + Forward, Start + (Direction * Fraction) - Forward, ECC_Visibility, TraceParams))
+		{
+			OverlapHitResult.bBlockingHit = true;
+			OverlapHitResult.Location = Start + (Direction * Fraction);
+			OverlapHitResult.Distance = FVector::Distance(Start, OverlapHitResult.Location);
+			//Todo keep working here
+			break;
+		}
+
+		Fraction += 0.05;
+	}
+
+	//Return the closer intersection
+	if (InnerHitResult.bBlockingHit && OuterHitResult.bBlockingHit)
+	{
+		HitResult = (InnerHitResult.Distance <= OuterHitResult.Distance) ? InnerHitResult : OuterHitResult;
+	}
+
+	return bFoundHit;
 }
