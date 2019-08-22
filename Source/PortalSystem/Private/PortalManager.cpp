@@ -277,13 +277,14 @@ bool APortalManager::FitPortalOnSurface(const APortal* Portal, const FVector& Fo
 	Corners[3] = Origin + BottomEdge + RightEdge;
 
 	TArray<FHitResult> LocalHitResults = HitResults;
-	for (int i = 0; i < 4; ++i)
+	for (int i = 0; i < 1; ++i)
 	{
 		if (!LocalHitResults[i].bBlockingHit)
 		{
 			if (TraceCorner(Portal, Origin, Corners[i], Forward, LocalHitResults[i]))
 			{
 				HitIndex[HitCount++] = i;
+				DrawDebugSphere(GetWorld(), LocalHitResults[i].Location, 5.0f, 8, FColor::Black, true, 1.0f, 0, 1.0f);
 			}
 			else
 			{
@@ -306,7 +307,9 @@ bool APortalManager::FitPortalOnSurface(const APortal* Portal, const FVector& Fo
 		break;
 	case 1:
 		{
-			float Distance = FMath::PointDistToLine(Corners[HitIndex[0]], HitResults[HitIndex[0]]., )
+			UE_LOG(LogTemp, Warning, TEXT("%s"), *LocalHitResults[HitIndex[0]].Normal.ToString());
+			float Distance = FMath::PointDistToLine(Corners[HitIndex[0]], LocalHitResults[HitIndex[0]].Normal, LocalHitResults[HitIndex[0]].Location);
+			UE_LOG(LogTemp, Warning, TEXT("%f"), Distance);
 		}
 	}
 
@@ -321,11 +324,13 @@ bool APortalManager::TraceCorner(const APortal* Portal, const FVector& Start, co
 	TraceParams.bFindInitialOverlaps = true;
 	TraceParams.bTraceComplex = true;
 	TraceParams.AddIgnoredActor(Portal);
+	TraceParams.AddIgnoredActor(Portal->GetPortalSurface());
 
 	//Check inner surface for intersections
 	FHitResult InnerHitResult;
 	if (GetWorld()->LineTraceSingleByChannel(InnerHitResult, Start - Forward, End - Forward, ECC_Visibility, TraceParams))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Behind"));
 		HitResult = InnerHitResult;
 		bFoundHit = true;
 	}
@@ -334,33 +339,62 @@ bool APortalManager::TraceCorner(const APortal* Portal, const FVector& Start, co
 	FHitResult OuterHitResult;
 	if (GetWorld()->LineTraceSingleByChannel(OuterHitResult, Start + Forward, End + Forward, ECC_Visibility, TraceParams))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Front"));
 		HitResult = OuterHitResult;
 		bFoundHit = true;
 	}
 
-	//Check corner overlaps surface. if not, treat as collision
-	float Fraction = 0.f;
-	const FVector Direction = End - Start;
-	FHitResult OverlapHitResult;
-	while (!FMath::IsNearlyEqual(Fraction, 1.0f))
-	{
-		if (!GetWorld()->LineTraceSingleByChannel(OverlapHitResult, Start + (Direction * Fraction) + Forward, Start + (Direction * Fraction) - Forward, ECC_Visibility, TraceParams))
-		{
-			OverlapHitResult.bBlockingHit = true;
-			OverlapHitResult.Location = Start + (Direction * Fraction);
-			OverlapHitResult.Distance = FVector::Distance(Start, OverlapHitResult.Location);
-			//Todo keep working here
-			break;
-		}
-
-		Fraction += 0.05;
-	}
-
-	//Return the closer intersection
+	//Determine the closer intersection, if any
 	if (InnerHitResult.bBlockingHit && OuterHitResult.bBlockingHit)
 	{
 		HitResult = (InnerHitResult.Distance <= OuterHitResult.Distance) ? InnerHitResult : OuterHitResult;
 	}
+
+	//Check if corner overlaps surface, if not we reached the end of surface and fake it as collision
+	FCollisionQueryParams VerticleTraceParams;
+	TraceParams.bFindInitialOverlaps = true;
+	TraceParams.bTraceComplex = true;
+	TraceParams.AddIgnoredActor(Portal);
+
+	FHitResult OverlapHitResult;
+
+	float Fraction = 0.f;
+	FVector Direction = End - Start;
+	while (Fraction <= 1.0f + KINDA_SMALL_NUMBER)
+	{
+		if (!GetWorld()->LineTraceSingleByChannel(OverlapHitResult, Start + (Direction * Fraction) + (Forward * 2), Start + (Direction * Fraction) - (Forward * 2), ECC_Visibility, VerticleTraceParams))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Vertically"));
+
+			OverlapHitResult.bBlockingHit = true;
+			OverlapHitResult.Location = Start + (Direction * Fraction);
+			OverlapHitResult.Distance = FVector::Distance(Start, OverlapHitResult.Location);
+			Direction.Normalize();
+			//TODO Solve issue of determining edge normal
+			OverlapHitResult.Normal = Direction;
+			OverlapHitResult.ImpactNormal = -Direction;
+
+			if (bFoundHit)
+			{
+				if (OverlapHitResult.Distance <= HitResult.Distance)
+				{
+					HitResult = OverlapHitResult;
+				}
+			}
+			else
+			{
+				HitResult = OverlapHitResult;
+			}
+
+			bFoundHit = true;
+			break;
+		}
+
+		OverlapHitResult.Reset();
+		Fraction += 0.05;
+	}
+
+
 
 	return bFoundHit;
 }
