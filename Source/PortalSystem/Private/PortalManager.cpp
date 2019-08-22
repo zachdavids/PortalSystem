@@ -214,16 +214,17 @@ bool APortalManager::VerifyPortalPlacement(const APortal* Portal, FVector& Origi
 
 	//Check if portal fits on surface
 	FVector PortalExtent = Portal->CalculateComponentsBoundingBoxInLocalSpace().GetExtent();
-	const FVector TopEdge = Origin + Up * PortalExtent.Z;
+	const FVector TopEdge = Up * PortalExtent.Z;
 	const FVector BottomEdge = -TopEdge;
-	const FVector RightEdge = Origin + Right * PortalExtent.Y;
+	const FVector RightEdge = Right * PortalExtent.Y;
 	const FVector LeftEdge = -RightEdge;
 
 	TArray<FHitResult> HitResults;
-	HitResults.SetNumUninitialized(4);
+	HitResults.SetNumZeroed(4);
+
 	TArray<int32> HitIndex;
 	HitIndex.SetNumUninitialized(4);
-	if (!FitPortalOnSurface(Portal, Forward, Right, TopEdge, BottomEdge, RightEdge, LeftEdge, HitResults, HitIndex, Origin))
+	if (!FitPortalOnSurface(Portal, Forward, Right, Up, TopEdge, BottomEdge, RightEdge, LeftEdge, HitResults, HitIndex, Origin))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Portal does not fit on surface"));
 		return false;
@@ -260,7 +261,7 @@ void APortalManager::FitPortalAroundTargetPortal(const APortal* Portal, const AP
 	}
 }
 
-bool APortalManager::FitPortalOnSurface(const APortal* Portal, const FVector& Forward, const FVector& Right, const FVector& TopEdge, const FVector& BottomEdge, const FVector& RightEdge, const FVector& LeftEdge, TArray<FHitResult>& HitResults, TArray<int32>& HitIndex, FVector& Origin, int RecursionCount, int HitCount)
+bool APortalManager::FitPortalOnSurface(const APortal* Portal, const FVector& Forward, const FVector& Right, const FVector& Up, const FVector& TopEdge, const FVector& BottomEdge, const FVector& RightEdge, const FVector& LeftEdge, TArray<FHitResult>& HitResults, TArray<int32>& HitIndex, FVector& Origin, int RecursionCount, int HitCount)
 {
 	if (RecursionCount == 0)
 	{
@@ -276,19 +277,18 @@ bool APortalManager::FitPortalOnSurface(const APortal* Portal, const FVector& Fo
 	Corners[2] = Origin + BottomEdge + LeftEdge;
 	Corners[3] = Origin + BottomEdge + RightEdge;
 
-	TArray<FHitResult> LocalHitResults = HitResults;
-	for (int i = 0; i < 1; ++i)
+	for (int i = 3; i < 4; ++i)
 	{
-		if (!LocalHitResults[i].bBlockingHit)
+		if (!HitResults[i].bBlockingHit)
 		{
-			if (TraceCorner(Portal, Origin, Corners[i], Forward, LocalHitResults[i]))
+			if (TraceCorner(Portal, Origin, Corners[i], Forward, Right, Up, HitResults[i]))
 			{
 				HitIndex[HitCount++] = i;
-				DrawDebugSphere(GetWorld(), LocalHitResults[i].Location, 5.0f, 8, FColor::Black, true, 1.0f, 0, 1.0f);
+				DrawDebugSphere(GetWorld(), HitResults[i].Location, 5.0f, 8, FColor::Black, true, 1.0f, 0, 1.0f);
 			}
 			else
 			{
-				LocalHitResults[i].Reset();
+				HitResults[i].Reset();
 			}
 		}
 	}
@@ -307,16 +307,33 @@ bool APortalManager::FitPortalOnSurface(const APortal* Portal, const FVector& Fo
 		break;
 	case 1:
 		{
-			UE_LOG(LogTemp, Warning, TEXT("%s"), *LocalHitResults[HitIndex[0]].Normal.ToString());
-			float Distance = FMath::PointDistToLine(Corners[HitIndex[0]], LocalHitResults[HitIndex[0]].Normal, LocalHitResults[HitIndex[0]].Location);
-			UE_LOG(LogTemp, Warning, TEXT("%f"), Distance);
+			float Distance = FMath::PointDistToLine(Corners[HitIndex[0]], FVector::CrossProduct(HitResults[HitIndex[0]].Normal, Forward), HitResults[HitIndex[0]].Location);
+			Origin += HitResults[HitIndex[0]].Normal * Distance;
+
+			return FitPortalOnSurface(Portal, Forward, Right, Up, TopEdge, BottomEdge, RightEdge, LeftEdge, HitResults, HitIndex, Origin, RecursionCount - 1, HitCount);
 		}
+		break;
+	case 2:
+		{
+			return true;
+		}
+		break;
+	case 3:
+		{
+			return true;
+		}
+		break;
+	default:
+		{
+			return false;
+		}
+		break;
 	}
 
 	return true;
 }
 
-bool APortalManager::TraceCorner(const APortal* Portal, const FVector& Start, const FVector& End, const FVector& Forward, FHitResult& HitResult)
+bool APortalManager::TraceCorner(const APortal* Portal, const FVector& Start, const FVector& End, const FVector& Forward, const FVector& Right, const FVector& Up, FHitResult& HitResult)
 {
 	bool bFoundHit = false;
 
@@ -330,7 +347,6 @@ bool APortalManager::TraceCorner(const APortal* Portal, const FVector& Start, co
 	FHitResult InnerHitResult;
 	if (GetWorld()->LineTraceSingleByChannel(InnerHitResult, Start - Forward, End - Forward, ECC_Visibility, TraceParams))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Behind"));
 		HitResult = InnerHitResult;
 		bFoundHit = true;
 	}
@@ -339,7 +355,6 @@ bool APortalManager::TraceCorner(const APortal* Portal, const FVector& Start, co
 	FHitResult OuterHitResult;
 	if (GetWorld()->LineTraceSingleByChannel(OuterHitResult, Start + Forward, End + Forward, ECC_Visibility, TraceParams))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Front"));
 		HitResult = OuterHitResult;
 		bFoundHit = true;
 	}
@@ -351,7 +366,7 @@ bool APortalManager::TraceCorner(const APortal* Portal, const FVector& Start, co
 	}
 
 	//Check if corner overlaps surface, if not we reached the end of surface and fake it as collision
-	FCollisionQueryParams VerticleTraceParams;
+	FCollisionQueryParams VerticalTraceParams;
 	TraceParams.bFindInitialOverlaps = true;
 	TraceParams.bTraceComplex = true;
 	TraceParams.AddIgnoredActor(Portal);
@@ -360,19 +375,54 @@ bool APortalManager::TraceCorner(const APortal* Portal, const FVector& Start, co
 
 	float Fraction = 0.f;
 	FVector Direction = End - Start;
+	FVector Location(0.f);
 	while (Fraction <= 1.0f + KINDA_SMALL_NUMBER)
 	{
-		if (!GetWorld()->LineTraceSingleByChannel(OverlapHitResult, Start + (Direction * Fraction) + (Forward * 2), Start + (Direction * Fraction) - (Forward * 2), ECC_Visibility, VerticleTraceParams))
+		Location = Start + (Direction * Fraction);
+		if (!GetWorld()->LineTraceSingleByChannel(OverlapHitResult, Location + (Forward * 2), Location - (Forward * 2), ECC_Visibility, VerticalTraceParams))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Vertically"));
+			//Found an edge now determine its normal
+			FVector RightProjection = Direction.ProjectOnToNormal(Right);
+			FVector UpProjection = Direction.ProjectOnToNormal(Up);
+
+			int32 Vertical = GetWorld()->LineTraceSingleByChannel
+			(
+				OverlapHitResult, 
+				Location + (RightProjection * 0.05) - (UpProjection * 0.05) + (Forward * 2),
+				Location + (RightProjection * 0.05) - (UpProjection * 0.05) - (Forward * 2),
+				ECC_Visibility, 
+				VerticalTraceParams
+			);
+
+			int32 Horizontal = GetWorld()->LineTraceSingleByChannel
+			(
+				OverlapHitResult, 
+				Location + (UpProjection * 0.05) - (RightProjection * 0.05) + (Forward * 2),
+				Location + (UpProjection * 0.05) - (RightProjection * 0.05) - (Forward * 2),
+				ECC_Visibility, 
+				VerticalTraceParams
+			);
+
+			if (Vertical)
+			{
+				OverlapHitResult.Normal = -UpProjection.GetClampedToSize(0, 1.0f);
+			}
+
+			if (Horizontal)
+			{
+				OverlapHitResult.Normal = -RightProjection.GetClampedToSize(0, 1.0f);
+			}
+
+			//Corner, choose one
+			if (!Vertical && !Horizontal)
+			{
+				OverlapHitResult.Normal = -UpProjection.GetClampedToSize(0, 1.0f);
+			}
 
 			OverlapHitResult.bBlockingHit = true;
-			OverlapHitResult.Location = Start + (Direction * Fraction);
+			OverlapHitResult.Location = Location;
 			OverlapHitResult.Distance = FVector::Distance(Start, OverlapHitResult.Location);
-			Direction.Normalize();
-			//TODO Solve issue of determining edge normal
-			OverlapHitResult.Normal = Direction;
-			OverlapHitResult.ImpactNormal = -Direction;
+			OverlapHitResult.ImpactNormal = FVector::CrossProduct(OverlapHitResult.Normal, Forward);
 
 			if (bFoundHit)
 			{
@@ -393,8 +443,6 @@ bool APortalManager::TraceCorner(const APortal* Portal, const FVector& Start, co
 		OverlapHitResult.Reset();
 		Fraction += 0.05;
 	}
-
-
 
 	return bFoundHit;
 }
