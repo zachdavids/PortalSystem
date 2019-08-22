@@ -15,7 +15,6 @@ A portal system made for Unreal Engine 4 using C++ and based off that of Valve's
   * Recursive Scene Capturing
 
 ### Known Bugs
-  * Teleportation does not save velocity
+  * Teleportation does not reorient player
   * Render targets not cleared when target portal deleted
-  * Scene captures not rotated correctly when portal placed on a surface with pitch or roll
   * Player not visible in scene captures
