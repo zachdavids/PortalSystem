@@ -18,3 +18,4 @@ A portal system made for Unreal Engine 4 using C++ and based off that of Valve's
   * Teleportation does not save velocity
   * Render targets not cleared when target portal deleted
   * Scene captures not rotated correctly when portal placed on a surface with pitch or roll
+  * Player not visible in scene captures
