@@ -7,7 +7,7 @@ A portal system made for Unreal Engine 4 using C++ and based off that of Valve's
   * Scene Capture Portals 
   * Teleportation
   * Portal Gun
-  * Placement System (WIP)
+  * Placement System
  
 ### In Development
   * Alternative Portal Gun Firing Mode (Tunneling, Wormhole)
