@@ -27,7 +27,7 @@ APortal::APortal()
 	MeshComponent->SetupAttachment(RootComponent);
 
 	BoxComponent = CreateDefaultSubobject<UBoxComponent>(FName("BoxComponent"));
-	BoxComponent->SetBoxExtent(FVector(0, 70, 130));
+	BoxComponent->SetBoxExtent(FVector(100, 70, 130));
 	BoxComponent->OnComponentBeginOverlap.AddDynamic(this, &APortal::OnOverlapBegin);
 	BoxComponent->OnComponentEndOverlap.AddDynamic(this, &APortal::OnOverlapEnd);
 	BoxComponent->SetupAttachment(RootComponent);
@@ -99,7 +99,7 @@ void APortal::TeleportActors()
 				if (UMathLibrary::CheckIsCrossing(Character->GetActorLocation(), GetActorLocation(), GetActorForwardVector(), bLastInFront, LastPosition))
 				{
 					UE_LOG(LogTemp, Warning, TEXT("Teleported to %s"), *Target->GetName());
-					FVector CurrentVelocity = Character->GetCharacterMovement()->Velocity;
+					FVector SavedVelocity = Character->GetCharacterMovement()->Velocity;
 
 					FHitResult HitResult;
 					FVector Location = UMathLibrary::ConvertLocation(Character->GetActorLocation(), this, Target);
@@ -107,8 +107,12 @@ void APortal::TeleportActors()
 					Character->SetActorLocationAndRotation(Location, Rotation, false, &HitResult, ETeleportType::TeleportPhysics);
 					PlayerController->SetControlRotation(UMathLibrary::ConvertRotation(PlayerController->GetControlRotation(), this, Target));
 
-					//TODO Add Previous Velocity
-					Character->GetCharacterMovement()->Velocity = FVector::ZeroVector;
+					FVector NewVelocity = 
+						FVector::DotProduct(SavedVelocity, GetActorForwardVector()) * Target->GetActorForwardVector() +
+						FVector::DotProduct(SavedVelocity, GetActorRightVector()) * Target->GetActorRightVector() +
+						FVector::DotProduct(SavedVelocity, GetActorUpVector()) * Target->GetActorUpVector();
+
+					Character->GetCharacterMovement()->Velocity = -NewVelocity;
 
 					LastPosition = Location;
 

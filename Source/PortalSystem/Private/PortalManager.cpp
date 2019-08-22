@@ -66,10 +66,9 @@ void APortalManager::BeginPlay()
 // Called every frame
 void APortalManager::UpdatePortals()
 {
-	APortalSystemPlayerController* PlayerController = Cast<APortalSystemPlayerController>(GetWorld()->GetFirstPlayerController());
-	if (PlayerController != nullptr)
+	if (OwningController != nullptr)
 	{
-		APlayerCameraManager* CameraManager = PlayerController->PlayerCameraManager;
+		APlayerCameraManager* CameraManager = OwningController->PlayerCameraManager;
 		if (CameraManager != nullptr)
 		{
 			for (TActorIterator<APortal> It(GetWorld()); It; ++It)
@@ -279,6 +278,11 @@ bool APortalManager::TraceCorner(const APortal* Portal, const FVector& Start, co
 	TraceParams.AddIgnoredActor(Portal);
 	TraceParams.AddIgnoredActor(Portal->GetPortalSurface());
 
+	if (OwningController != nullptr)
+	{
+		TraceParams.AddIgnoredActor(OwningController->GetCharacter());
+	}
+
 	//Check inner surface for intersections
 	FHitResult InnerHitResult;
 	if (GetWorld()->LineTraceSingleByChannel(InnerHitResult, Start - Forward, End - Forward, ECC_Visibility, TraceParams))
@@ -306,6 +310,11 @@ bool APortalManager::TraceCorner(const APortal* Portal, const FVector& Start, co
 	TraceParams.bFindInitialOverlaps = true;
 	TraceParams.bTraceComplex = true;
 	TraceParams.AddIgnoredActor(Portal);
+
+	if (OwningController != nullptr)
+	{
+		TraceParams.AddIgnoredActor(OwningController->GetCharacter());
+	}
 
 	FHitResult OverlapHitResult;
 
