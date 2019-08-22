@@ -16,7 +16,7 @@ A portal system made for Unreal Engine 4 using C++ and based off that of Valve's
 
 ### Known Bugs
   * Teleportation does not reorient player
-  * Render targets not cleared when target portal deleted
-  * Player not visible in scene captures
+  * Render targets not cleared when target portal deleted (Change Portal Texture to Placeholder)
+  * Player not visible in scene captures (Ensure Mesh Set to Visible in Rendering)
   * Portal will not spawn under player
-  * Portal does not recognize collision if spawned under player
+  * Portal does not recognize collision if spawned under player (Check Overlapping Actors on BeginPlay to Solve)
