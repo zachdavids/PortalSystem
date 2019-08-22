@@ -33,7 +33,7 @@ public:
 
 	void SpawnRedPortal(const FVector& Start, const FVector& End);
 
-	APortal* SpawnPortal(const FVector& Start, const FVector& End);
+	APortal* SpawnPortal(APortal* Target, const FColor Color, const FVector& Start, const FVector& End);
 
 	bool TraceCorner(const APortal* Portal, const FVector& Start, const FVector& End, const FVector& Forward, const FVector& Right, const FVector& Up, FHitResult& HitResult);
 
@@ -41,7 +41,7 @@ public:
 
 	void FitPortalAroundTargetPortal(const APortal* Portal, const APortal* Target, const FVector& Forward, const FVector& Right, const FVector& Up, FVector& Origin);
 
-	bool FitPortalOnSurface(const APortal* Portal, const FVector& Forward, const FVector& Right, const FVector& Up, const FVector& TopEdge, const FVector& BottomEdge, const FVector& RightEdge, const FVector& LeftEdge, TArray<FHitResult>& HitResults, TArray<int32>& HitIndex, FVector& Origin, int RecursionCount = 6, int HitCount = 0);
+	bool FitPortalOnSurface(const APortal* Portal, const FVector& Forward, const FVector& Right, const FVector& Up, const FVector& TopEdge, const FVector& BottomEdge, const FVector& RightEdge, const FVector& LeftEdge, FVector& Origin, int RecursionCount = 10);
 
 
 protected:

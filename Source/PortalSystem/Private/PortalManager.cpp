@@ -106,58 +106,25 @@ void APortalManager::SpawnBluePortal(const FVector& Start, const FVector& End)
 {
 	if (BluePortal != nullptr)
 	{
-		BluePortal->Destroy();
 		RedPortal->SetTarget(nullptr);
+		BluePortal->Destroy();
 	}
 
-	BluePortal = SpawnPortal(Start, End);
-
-	if (BluePortal != nullptr)
-	{
-		BluePortal->SetColor(FColor::Blue);
-		if (RedPortal != nullptr)
-		{
-			BluePortal->SetTarget(RedPortal);
-			RedPortal->SetTarget(BluePortal);
-		}
-
-		FVector Origin = BluePortal->GetActorLocation();
-		if (VerifyPortalPlacement(BluePortal, Origin))
-		{
-			BluePortal->SetActorLocation(Origin);
-		};
-	}
+	BluePortal = SpawnPortal(RedPortal, FColor::Blue, Start, End);
 }
 
 void APortalManager::SpawnRedPortal(const FVector& Start, const FVector& End)
 {
 	if (RedPortal != nullptr)
 	{
-		RedPortal->Destroy();
 		BluePortal->SetTarget(nullptr);
+		RedPortal->Destroy();
 	}
 
-    RedPortal = SpawnPortal(Start, End);
-
-	if (RedPortal != nullptr)
-	{
-		RedPortal->SetColor(FColor::Red);
-		if (BluePortal != nullptr)
-		{
-			RedPortal->SetTarget(BluePortal);
-			BluePortal->SetTarget(RedPortal);
-		}
-
-		//Todo move this
-		FVector Origin = RedPortal->GetActorLocation();
-		if (VerifyPortalPlacement(RedPortal, Origin))
-		{
-			RedPortal->SetActorLocation(Origin);
-		};
-	}
+    RedPortal = SpawnPortal(BluePortal, FColor::Red, Start, End);
 }
 
-APortal* APortalManager::SpawnPortal(const FVector& Start, const FVector& End)
+APortal* APortalManager::SpawnPortal(APortal* Target, const FColor Color, const FVector& Start, const FVector& End)
 {
 	APortal* Portal = nullptr;
 
@@ -183,6 +150,23 @@ APortal* APortalManager::SpawnPortal(const FVector& Start, const FVector& End)
 
 			Portal = World->SpawnActor<APortal>(PortalClass, Origin, Rotation, ActorSpawnParams);
 			Portal->SetPortalSurface(OutHit.GetActor());
+			Portal->SetColor(Color);
+			
+			if (Target != nullptr)
+			{
+				Portal->SetTarget(Target);
+				Target->SetTarget(Portal);
+			}
+
+			if (VerifyPortalPlacement(Portal, Origin))
+			{
+				Portal->SetActorLocation(Origin);
+			}
+			else
+			{
+				Target->SetTarget(nullptr);
+				Portal->Destroy();
+			}
 		}
 	}
 
@@ -219,12 +203,7 @@ bool APortalManager::VerifyPortalPlacement(const APortal* Portal, FVector& Origi
 	const FVector RightEdge = Right * PortalExtent.Y;
 	const FVector LeftEdge = -RightEdge;
 
-	TArray<FHitResult> HitResults;
-	HitResults.SetNumZeroed(4);
-
-	TArray<int32> HitIndex;
-	HitIndex.SetNumUninitialized(4);
-	if (!FitPortalOnSurface(Portal, Forward, Right, Up, TopEdge, BottomEdge, RightEdge, LeftEdge, HitResults, HitIndex, Origin))
+	if (!FitPortalOnSurface(Portal, Forward, Right, Up, TopEdge, BottomEdge, RightEdge, LeftEdge, Origin))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Portal does not fit on surface"));
 		return false;
@@ -261,14 +240,12 @@ void APortalManager::FitPortalAroundTargetPortal(const APortal* Portal, const AP
 	}
 }
 
-bool APortalManager::FitPortalOnSurface(const APortal* Portal, const FVector& Forward, const FVector& Right, const FVector& Up, const FVector& TopEdge, const FVector& BottomEdge, const FVector& RightEdge, const FVector& LeftEdge, TArray<FHitResult>& HitResults, TArray<int32>& HitIndex, FVector& Origin, int RecursionCount, int HitCount)
+bool APortalManager::FitPortalOnSurface(const APortal* Portal, const FVector& Forward, const FVector& Right, const FVector& Up, const FVector& TopEdge, const FVector& BottomEdge, const FVector& RightEdge, const FVector& LeftEdge, FVector& Origin, int RecursionCount)
 {
 	if (RecursionCount == 0)
 	{
 		return false;
 	}
-
-	int32 OriginalHitCount = HitCount;
 
 	TArray<FVector> Corners;
 	Corners.SetNumUninitialized(4);
@@ -277,57 +254,16 @@ bool APortalManager::FitPortalOnSurface(const APortal* Portal, const FVector& Fo
 	Corners[2] = Origin + BottomEdge + LeftEdge;
 	Corners[3] = Origin + BottomEdge + RightEdge;
 
-	for (int i = 3; i < 4; ++i)
+	FHitResult HitResult;
+	for (int i = 0; i < 4; ++i)
 	{
-		if (!HitResults[i].bBlockingHit)
+		if (TraceCorner(Portal, Origin, Corners[i], Forward, Right, Up, HitResult))
 		{
-			if (TraceCorner(Portal, Origin, Corners[i], Forward, Right, Up, HitResults[i]))
-			{
-				HitIndex[HitCount++] = i;
-				DrawDebugSphere(GetWorld(), HitResults[i].Location, 5.0f, 8, FColor::Black, true, 1.0f, 0, 1.0f);
-			}
-			else
-			{
-				HitResults[i].Reset();
-			}
-		}
-	}
+			float Distance = FMath::PointDistToLine(Corners[i], FVector::CrossProduct(HitResult.Normal, Forward), HitResult.Location) + 5.0f;
+			Origin += HitResult.Normal * Distance;
 
-	if (HitCount == OriginalHitCount)
-	{
-		return true;
-	}
-
-	switch (HitCount)
-	{
-	case 0:
-		{
-			return true;
+			return FitPortalOnSurface(Portal, Forward, Right, Up, TopEdge, BottomEdge, RightEdge, LeftEdge, Origin, RecursionCount - 1);
 		}
-		break;
-	case 1:
-		{
-			float Distance = FMath::PointDistToLine(Corners[HitIndex[0]], FVector::CrossProduct(HitResults[HitIndex[0]].Normal, Forward), HitResults[HitIndex[0]].Location);
-			Origin += HitResults[HitIndex[0]].Normal * Distance;
-
-			return FitPortalOnSurface(Portal, Forward, Right, Up, TopEdge, BottomEdge, RightEdge, LeftEdge, HitResults, HitIndex, Origin, RecursionCount - 1, HitCount);
-		}
-		break;
-	case 2:
-		{
-			return true;
-		}
-		break;
-	case 3:
-		{
-			return true;
-		}
-		break;
-	default:
-		{
-			return false;
-		}
-		break;
 	}
 
 	return true;
