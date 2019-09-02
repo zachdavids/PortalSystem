@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PortalSystemCharacter.h"
+#include "MathLibrary.h"
 #include "DrawDebugHelpers.h"
 #include "PortalSystemProjectile.h"
 #include "Animation/AnimInstance.h"
@@ -9,6 +10,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/BoxComponent.h"
+#include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "GameFramework/InputSettings.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
@@ -95,6 +97,7 @@ APortalSystemCharacter::APortalSystemCharacter()
 	VR_MuzzleLocation->SetRelativeLocation(FVector(0.000004, 53.999992, 10.000000));
 	VR_MuzzleLocation->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));		// Counteract the rotation of the VR gun model.
 
+	PhysicsHandle = CreateDefaultSubobject<UPhysicsHandleComponent>(TEXT("PhysicsHandle"));
 	// Uncomment the following line to turn motion controllers on by default:
 	//bUsingMotionControllers = true;
 }
@@ -120,6 +123,19 @@ void APortalSystemCharacter::BeginPlay()
 	}
 }
 
+void APortalSystemCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (bHoldingObject)
+	{
+		const FVector Start = ((FP_MuzzleLocation != nullptr) ? FP_MuzzleLocation->GetComponentLocation() : GetActorLocation()) + GetControlRotation().RotateVector(GunOffset);
+		const FVector End = Start + FirstPersonCameraComponent->GetForwardVector() * 250.f;
+
+		PhysicsHandle->SetTargetLocation(End);
+	}
+}
+
 void APortalSystemCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
 	// set up gameplay key bindings
@@ -132,6 +148,10 @@ void APortalSystemCharacter::SetupPlayerInputComponent(class UInputComponent* Pl
 	// Bind fire event
 	PlayerInputComponent->BindAction("FireBlue", IE_Pressed, this, &APortalSystemCharacter::OnBlueFire);
 	PlayerInputComponent->BindAction("FireRed", IE_Pressed, this, &APortalSystemCharacter::OnRedFire);
+
+	// Bind grab event
+	PlayerInputComponent->BindAction("Grab", IE_Pressed, this, &APortalSystemCharacter::Grab);
+	PlayerInputComponent->BindAction("Grab", IE_Released, this, &APortalSystemCharacter::Drop);
 
 	// Enable touchscreen input
 	EnableTouchscreenMovement(PlayerInputComponent);
@@ -185,74 +205,6 @@ void APortalSystemCharacter::OnRedFire()
 	}
 }
 
-//bool APortalSystemCharacter::CheckSurfaceSize(const APortal* Portal, const FVector& Extent)
-//{
-//	FBox SurfaceBounds = Portal->GetPortalSurface()->GetComponentsBoundingBox();
-//	FVector SurfaceExtent = Portal->GetActorForwardVector().Rotation().RotateVector(SurfaceBounds.GetExtent()).GetAbs();
-//
-//	return SurfaceExtent.Y >= Extent.Y && SurfaceExtent.Z >= Extent.Z;
-//}
-//
-//bool APortalSystemCharacter::CheckWithinSurface(const APortal* Portal, FVector& Center, const FVector& Extent)
-//{
-//	FHitResult CornerOutHit;
-//	const FVector PortalForward = Portal->GetActorForwardVector();
-//	const FVector PortalRight = -Portal->GetActorRightVector();
-//	const FVector PortalUp = Portal->GetActorUpVector();
-//	const AActor* PortalSurface = Portal->GetPortalSurface();
-//
-//	const FVector TopLeft = Center + (PortalRight * -Extent.Y) + (PortalUp * Extent.Z);
-//	bool TopLeftHit = GetWorld()->LineTraceSingleByChannel(CornerOutHit, TopLeft + PortalForward * 10, TopLeft - PortalForward * 10, ECC_Visibility);
-//
-//	const FVector TopRight = Center + (PortalRight * Extent.Y) + (PortalUp * Extent.Z);
-//	bool TopRightHit = GetWorld()->LineTraceSingleByChannel(CornerOutHit, TopRight + PortalForward * 10, TopRight - PortalForward * 10, ECC_Visibility);
-//
-//	const FVector BottomLeft = Center + (PortalRight * -Extent.Y) + (PortalUp * -Extent.Z);
-//	bool BottomLeftHit = GetWorld()->LineTraceSingleByChannel(CornerOutHit, BottomLeft + PortalForward * 10, BottomLeft - PortalForward * 10, ECC_Visibility);
-//
-//	const FVector BottomRight = Center + (PortalRight * Extent.Y) + (PortalUp * -Extent.Z);
-//	bool BottomRightHit = GetWorld()->LineTraceSingleByChannel(CornerOutHit, BottomRight + PortalForward * 10, BottomRight - PortalForward * 10, ECC_Visibility);
-//
-//	if (!BottomLeftHit && !BottomRightHit)
-//	{
-//		Center += PortalUp;
-//		return CheckWithinSurface(Portal, Center, Extent);
-//	}
-//
-//	if (!TopLeftHit & !TopRightHit)
-//	{
-//		Center -= PortalUp;
-//		return CheckWithinSurface(Portal, Center, Extent);
-//	}
-//
-//	if (!TopLeftHit & !BottomLeftHit)
-//	{
-//		Center += PortalRight;
-//		return CheckWithinSurface(Portal, Center, Extent);
-//	}
-//
-//	if (!TopRightHit && !BottomRightHit)
-//	{
-//		Center -= PortalRight;
-//		return CheckWithinSurface(Portal, Center, Extent);
-//	}
-//
-//	return true;
-//}
-
-//// perf note: this is faster if ProposedAdjustment is null, since it can early out on first penetration
-//bool APortalSystemCharacter::CheckBlockingGeometry(const APortal* Portal, FVector TestLocation, FRotator TestRotation, FVector* ProposedAdjustment)
-//{
-//
-//}
-//
-///** Tests if the given component overlaps any blocking geometry if it were placed at the given world transform, optionally returns a suggested translation to get the component away from its overlaps. */
-//bool APortalSystemCharacter::CheckComponentBlockingGeometry(UWorld const* World, APortal const* Portal, UPrimitiveComponent const* PrimComp, FTransform const& TestWorldTransform, FVector* OutProposedAdjustment, const TArray<AActor*>& IgnoreActors)
-//{
-//
-//}
-
-
 void APortalSystemCharacter::Fire()
 {
 	// try and play the sound if specified
@@ -270,6 +222,67 @@ void APortalSystemCharacter::Fire()
 		{
 			AnimInstance->Montage_Play(FireAnimation, 1.f);
 		}
+	}
+}
+
+void APortalSystemCharacter::Grab()
+{
+	FVector Start = ((FP_MuzzleLocation != nullptr) ? FP_MuzzleLocation->GetComponentLocation() : GetActorLocation()) + GetControlRotation().RotateVector(GunOffset);
+	FVector End = Start + FirstPersonCameraComponent->GetForwardVector() * 500.f;
+
+	FHitResult HitResult;
+	if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECollisionChannel::ECC_GameTraceChannel3))
+	{
+		APortal* Portal = Cast<APortal>(HitResult.GetActor());
+		if (Portal != nullptr)
+		{
+			APortal* Target = Portal->GetTarget();
+			if (Target != nullptr )
+			{
+				float RemainingDistance = 1000.0f - HitResult.Distance;
+
+				FVector NewDirection =
+					FVector::DotProduct(End, Portal->GetActorForwardVector()) * Target->GetActorForwardVector() +
+					FVector::DotProduct(End, Portal->GetActorRightVector()) * Target->GetActorRightVector() +
+					FVector::DotProduct(End, Portal->GetActorUpVector()) * Target->GetActorUpVector();
+
+				Start = UMathLibrary::ConvertLocation(HitResult.Location, Portal, Target);
+				End = Start + NewDirection * RemainingDistance;
+				if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End * RemainingDistance, ECollisionChannel::ECC_GameTraceChannel3))
+				{
+					if (Cast<APortal>(HitResult.GetActor()))
+					{
+						return;
+					}
+
+					UPrimitiveComponent* Component = HitResult.GetComponent();
+					if (Component->IsSimulatingPhysics())
+					{
+						PhysicsHandle->GrabComponentAtLocationWithRotation(Component, FName(""), HitResult.GetActor()->GetActorLocation(), FRotator::ZeroRotator);
+						bHoldingObject = true;
+					}
+				}
+			}
+		}
+		else
+		{
+			UPrimitiveComponent* Component = HitResult.GetComponent();
+			if (Component->IsSimulatingPhysics())
+			{
+				PhysicsHandle->GrabComponentAtLocationWithRotation(Component, FName(""), HitResult.GetActor()->GetActorLocation(), FRotator::ZeroRotator);
+				bHoldingObject = true;
+			}
+		}
+	}
+
+}
+
+void APortalSystemCharacter::Drop()
+{
+	if (bHoldingObject)
+	{
+		PhysicsHandle->ReleaseComponent();
+		bHoldingObject = false;
 	}
 }
 

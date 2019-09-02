@@ -27,7 +27,7 @@ APortal::APortal()
 	MeshComponent->SetupAttachment(RootComponent);
 
 	BoxComponent = CreateDefaultSubobject<UBoxComponent>(FName("BoxComponent"));
-	BoxComponent->SetBoxExtent(FVector(100, 70, 130));
+	BoxComponent->SetBoxExtent(FVector(100, 100, 175));
 	BoxComponent->OnComponentBeginOverlap.AddDynamic(this, &APortal::OnOverlapBegin);
 	BoxComponent->OnComponentEndOverlap.AddDynamic(this, &APortal::OnOverlapEnd);
 	BoxComponent->SetupAttachment(RootComponent);

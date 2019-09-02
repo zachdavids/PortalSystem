@@ -7,6 +7,7 @@
 #include "PortalSystemCharacter.generated.h"
 
 class UInputComponent;
+class UPhysicsHandleComponent;
 
 UCLASS(config=Game)
 class APortalSystemCharacter : public ACharacter
@@ -45,8 +46,14 @@ class APortalSystemCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UMotionControllerComponent* L_MotionController;
 
+	/** Location on gun mesh where projectiles should spawn. */
+	UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
+	class UPhysicsHandleComponent* PhysicsHandle;
+
 public:
 	APortalSystemCharacter();
+
+	virtual void Tick(float DeltaTime) override;
 
 protected:
 	virtual void BeginPlay();
@@ -65,8 +72,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
 	FVector GunOffset;
 
-
-
 	/** Sound to play each time we fire */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
 	class USoundBase* FireSound;
@@ -80,12 +85,18 @@ public:
 	uint32 bUsingMotionControllers : 1;
 
 protected:
+
+	bool bHoldingObject = false;
 	
 	void OnBlueFire();
 
 	void OnRedFire();
 
 	void Fire();
+
+	void Grab();
+
+	void Drop();
 
 	/** Resets HMD orientation and position in VR. */
 	void OnResetVR();
