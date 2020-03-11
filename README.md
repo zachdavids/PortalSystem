@@ -1,6 +1,10 @@
 # PortalSystem
 ****
 
+<p align="center">
+<img src="PortalSystem.gif">
+</p>
+
 A portal system made for Unreal Engine 4 using C++ and based off that of Valve's Portal series.
 
 ### Features
