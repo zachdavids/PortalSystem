@@ -29,15 +29,13 @@ APortalManager::APortalManager(const FObjectInitializer& ObjectInitializer) :
 	CaptureSettings.bOverride_AmbientOcclusionQuality = true;
 	CaptureSettings.bOverride_MotionBlurAmount = true;
 	CaptureSettings.bOverride_SceneFringeIntensity = true;
-	CaptureSettings.bOverride_GrainIntensity = true;
+	CaptureSettings.bOverride_FilmGrainIntensity = true;
 	CaptureSettings.bOverride_ScreenSpaceReflectionQuality = true;
-	CaptureSettings.bOverride_ScreenPercentage = true;
 	CaptureSettings.AmbientOcclusionQuality = 0.0f;
 	CaptureSettings.MotionBlurAmount = 0.0f;
 	CaptureSettings.SceneFringeIntensity = 0.0f;
-	CaptureSettings.GrainIntensity = 0.0f;
+	CaptureSettings.FilmGrainIntensity = 0.0f;
 	CaptureSettings.ScreenSpaceReflectionQuality = 0.0f;
-	CaptureSettings.ScreenPercentage = 100.0f;
 
 	CaptureComponent->bCaptureEveryFrame = false;
 	CaptureComponent->bCaptureOnMovement = false;
