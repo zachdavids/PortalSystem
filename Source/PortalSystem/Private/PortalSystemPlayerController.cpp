@@ -26,8 +26,8 @@ FMatrix APortalSystemPlayerController::GetCameraProjectionMatrix()
 		FSceneViewProjectionData PlayerProjectionData;
 		GetLocalPlayer()->GetProjectionData(
 			GetLocalPlayer()->ViewportClient->Viewport,
-			EStereoscopicPass::eSSP_FULL,
-			PlayerProjectionData
+			PlayerProjectionData,
+			INDEX_NONE
 		);
 
 		ProjectionMatrix = PlayerProjectionData.ProjectionMatrix;
